@@ -757,7 +757,11 @@ page = f'''<meta charset="utf-8">
 <aside class="side" aria-label="Sections"><details open><summary>Contents</summary>{nav_html}</details>
 <div class="legend"><div><span class="sw" style="background:var(--accent)"></span>Stops at the controller (safe to poll)</div><div><span class="sw" style="background:var(--amber)"></span>Reaches the device (on demand)</div><div><span class="sw" style="background:var(--green)"></span>Writes configuration (async task)</div></div></aside>
 <main>{body}</main></div>
-<footer class="site"><div class="in"><b>Cisco<span>SE</span></b> · Catalyst Center API field guide · Release 3.3.1 with 3.1.6 and 2.3.7.x deltas · verified 23 Oct 2026 · <a href="https://github.com/alexpacket/catalyst-center-api-guide">Source</a></div></footer>
+<footer class="site"><div class="in">
+  <p class="brandline">Cisco<span>SE</span> · Field reference</p>
+  <p>Catalyst Center API field guide · Release 3.3.1 with 3.1.6 and 2.3.7.x deltas · verified 23 Oct 2026. Built from the Cisco DevNet Catalyst Center API reference, the Catalyst Center Platform User Guides 3.1.x to 3.3.x, the release notes and the compatibility matrix. Verify endpoints in <b>Platform &gt; Developer Toolkit &gt; APIs</b> on your cluster before production use.</p>
+  <p>Not an official Cisco publication. Corrections are welcome as <a href="https://github.com/alexpacket/catalyst-center-api-guide/pulls">pull requests</a> with the supporting document and release.</p>
+</div></footer>
 {data_script()}
 <script>{JS}
 {IJS}

@@ -50,7 +50,12 @@ header.site nav a:hover, header.site nav a[aria-current="true"] { border-bottom-
 .hbtn { display: inline-flex; font: 600 16px var(--sans); padding: 10px 20px; border-radius: 48px; border: 1px solid #fff; background: transparent; color: #fff; text-decoration: none; }
 .hbtn.solid { background: #fff; color: #07182D; }
 footer.site { background: #000; color: #B9C1C9; font-size: 13px; padding-block: 28px; }
-footer.site b span { color: #33CCF0; }
+footer.site p { margin: 0 0 8px; max-width: 110ch; color: #B9C1C9; }
+footer.site p:last-child { margin-bottom: 0; }
+footer.site b { color: #fff; font-weight: 600; }
+footer.site .brandline { color: #fff; font-weight: 700; font-size: 15px; }
+footer.site .brandline span { color: #33CCF0; }
+footer.site a { color: #33CCF0; }
 
 /* Layout */
 .layout { max-width: 1240px; margin: 0 auto; display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 48px;
