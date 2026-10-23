@@ -1,6 +1,8 @@
 import html, os, sys
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
 from svg import *
+from anim import sim_controls, sim_log, JS as AJS
 from interactive import stepper, path_tool, rate_tool, choose_tool, code_tool, sym_tool, dep_tool, search_tool, data_script, JS as IJS
 
 E = html.escape
@@ -11,8 +13,17 @@ def code(lang, src, title):
             f'<button type="button" class="copy">Copy</button></div><pre><code>{E(src.strip())}</code></pre></div>')
 
 
-def fig(svgs, num, cap, extra=""):
-    return f'<figure class="fig"><div class="fig-scroll">{svgs}</div>{extra}<figcaption><b>Figure {num}.</b> {cap}</figcaption></figure>'
+FIGS = []
+FIG_T = {0: "Integration directions", 1: "Where a call stops", 2: "Token authentication and re-authentication", 3: "Asynchronous task pattern",
+         4: "Day-0 site build", 5: "SWIM upgrade wave", 6: "SD-Access fabric build order", 7: "Choosing the right data source",
+         8: "Webhooks with hourly reconcile", 9: "Command Runner round trip", 10: "ServiceNow ITSM integration", 11: "MCP server trust boundary",
+         12: "Retry decision by status code", 13: "Separating failures from filter or RBAC scope", 14: "Release and deprecation timeline"}
+KIT = "https://catc-api.ciscose.com/catalyst-center-api-kit.zip"
+
+
+def fig(svgs, num, cap, extra="", pre="", title=None):
+    FIGS.append((num, title or FIG_T.get(num, cap.split(". ")[0])))
+    return f'<figure class="fig" id="fig-{num}">{pre}<div class="fig-scroll">{svgs}</div>{extra}<figcaption><b>Figure {num}.</b> {cap}</figcaption></figure>'
 
 
 def table(head, rows, cls="", tid=""):
@@ -50,7 +61,7 @@ NAV = [
     ("Integrate", [("itsm", "ITSM and ServiceNow"), ("playbooks", "Integration playbooks"), ("mcp", "AI agents and MCP")]),
     ("Operate", [("prechange", "Change prerequisites"), ("compat", "Compatibility matrix"), ("errors", "Errors and resilience"),
                  ("delta237", "2.3.7.x to 3.x deltas"), ("changes", "Deprecated APIs"), ("tooling", "Tooling"), ("checklist", "Guidance checklist"),
-                 ("sources", "Sources")]),
+                 ("figures", "Figure index"), ("sources", "Sources")]),
 ]
 
 nav_html = ""
@@ -207,6 +218,9 @@ A(f'''<section id="stops"><h2>Where a call stops</h2>
   <div class="card c-asr"><h4>Assurance data</h4><p>Health scores, issues, events, analytics. Intent health endpoints plus <code>/dna/data</code> query and trend operations.</p><p class="fresh">Freshness: telemetry ingest from devices (SNMP, syslog, NetFlow, streaming telemetry).</p></div>
   <div class="card c-write"><h4>Task engine</h4><p>Provisioning, SWIM (Software Image Management), discovery, Command Runner. Returns 202 with a <code>taskId</code>.</p><p class="fresh">Freshness: the result exists only once <code>endTime</code> is set.</p></div>
 </div>
+<h3 id="live">Live simulation: a day of API traffic</h3>
+<p>The same three stores, running. Devices stream telemetry into Assurance without any API call. Your dashboard polls every five minutes, a CMDB (configuration management database) sync pages through inventory nightly, and webhooks leave the event engine without touching the API gateway. Trigger a Command Runner job or a 60-call bulk script to see the default limit of 50 calls per minute reject the overflow with HTTP 429.</p>
+{fig(fig_sim(), "1b", "Teaching simulation; timings are compressed and call counts are representative, not measured. The rate limit is shared by every client using the same account, so a runaway script also starves your dashboard.", sim_log(), pre=sim_controls(), title="Live simulation of a day of API traffic")}
 </section>''')
 
 A(f'''<section id="auth"><h2>Authentication and RBAC</h2>
@@ -659,11 +673,12 @@ SRC = [
     ("GitHub: catc-mcp-oss", "https://github.com/cisco-en-programmability/catc-mcp-oss"),
     ("Cisco Blogs: Meraki and Catalyst Center MCP servers", "https://blogs.cisco.com/cisco-devnet/build-agentic-networking-experiences-with-meraki-and-catalyst-center-mcp-servers"),
 ]
+A('@@FIGINDEX@@')
 A('<section id="sources"><h2>Sources</h2><ul class="src">' +
   "".join(f'<li><a href="{u}" target="_blank" rel="noopener">{E(t)}</a></li>' for t, u in SRC) +
   '</ul><p class="note">Payloads marked illustrative must be checked against the operation schema in your release. Verify endpoints in Platform &gt; Developer Toolkit &gt; APIs before production use.</p></section>')
 
-CSS = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "style.css")).read()
+CSS = open(os.path.join(HERE, "style.css"), encoding="utf-8").read()
 JS = r'''
 document.querySelectorAll('.copy').forEach(function(b){
   b.addEventListener('click', function(){
@@ -676,10 +691,13 @@ document.querySelectorAll('.copy').forEach(function(b){
 });
 function sel(b){ var r = document.createRange(); r.selectNodeContents(b.closest('.code').querySelector('code'));
   var s = window.getSelection(); s.removeAllRanges(); s.addRange(r); b.textContent = 'Press Ctrl+C'; }
-(function(){ var b=document.getElementById('theme-toggle'); var r=document.documentElement;
-  try { var t=localStorage.getItem('catc-theme'); if (t) r.setAttribute('data-theme', t); } catch(e){}
-  b.addEventListener('click', function(){ var dark = r.getAttribute('data-theme') ? r.getAttribute('data-theme')==='dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
-    var n = dark ? 'light' : 'dark'; r.setAttribute('data-theme', n); try { localStorage.setItem('catc-theme', n); } catch(e){} }); })();
+(function(){ var b=document.getElementById('theme-toggle'), r=document.documentElement, K='catc-theme', order=['dark','light','system'];
+  function cur(){ return r.getAttribute('data-theme') || 'system'; }
+  function show(){ var c=cur(); b.textContent = c==='system' ? 'Theme: system' : (c==='dark' ? 'Theme: dark' : 'Theme: light'); b.setAttribute('aria-label', 'Colour theme: ' + c + '. Select to change.'); }
+  try { var t=localStorage.getItem(K); if (t==='dark'||t==='light') r.setAttribute('data-theme', t); } catch(e){}
+  b.addEventListener('click', function(){ var n = order[(order.indexOf(cur()) + 1) % 3];
+    if (n==='system') r.removeAttribute('data-theme'); else r.setAttribute('data-theme', n);
+    try { localStorage.setItem(K, n); } catch(e){} show(); }); show(); })();
 if (window.matchMedia('(max-width: 960px)').matches) { var d = document.querySelector('.side details'); if (d) d.open = false; }
 var tops = Array.prototype.slice.call(document.querySelectorAll('header.site nav a'));
 var links = Array.prototype.slice.call(document.querySelectorAll('.side a'));
@@ -694,6 +712,14 @@ if ('IntersectionObserver' in window) {
 
 PART_OF = {i: part for part, items in NAV for i, _ in items}
 body = "".join(S)
+import re as _re
+_sec, _rows = None, []
+for m in _re.finditer(r'<section id="([^"]+)"|<figure class="fig" id="fig-([^"]+)"', body):
+    if m.group(1): _sec = m.group(1); continue
+    n = m.group(2); t = dict((str(k), v) for k, v in FIGS)[n]
+    secname = next((tt for p, items in NAV for i, tt in items if i == _sec), _sec)
+    _rows.append(f'<li><a href="#fig-{n}"><span class="fi-n">Figure {n}</span><span class="fi-t">{E(t)}</span><span class="fi-s">{E(secname)}</span></a></li>')
+body = body.replace("@@FIGINDEX@@", '<section id="figures"><h2>Figure index</h2><p>Every diagram in the guide. Flow figures animate their packets (pause or replay from the bar above each one); step-through figures send a packet as you advance.</p><ol class="figidx">' + "".join(_rows) + '</ol></section>')
 for sid, part in PART_OF.items():
     body = body.replace(f'<section id="{sid}"><h2>', f'<section id="{sid}"><p class="eyebrow">{part}</p><h2>', 1)
 FIRST = {part: items[0][0] for part, items in NAV}
@@ -701,6 +727,7 @@ top_nav = "".join(f'<a href="#{FIRST[p]}" data-part="{p}">{p}</a>' for p, _ in N
 
 page = f'''<meta charset="utf-8">
 <title>Catalyst Center API Field Guide</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 rx=%227%22 fill=%22%23000%22/%3E%3Cpath d=%22M7 22h4M14 22h4M21 22h4M9 16h3M15 16h2M20 16h3M11 10h10%22 stroke=%22%2300BCEB%22 stroke-width=%222.6%22 stroke-linecap=%22round%22/%3E%3C/svg%3E">
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
@@ -708,7 +735,7 @@ page = f'''<meta charset="utf-8">
 <header class="site"><div class="in">
 <a class="brand" href="#top"><b>Cisco<span>SE</span></b><small>Field reference</small></a>
 <nav aria-label="Guide parts">{top_nav}</nav>
-<button type="button" class="pill" id="theme-toggle">Light / dark</button>
+<button type="button" class="pill" id="theme-toggle">Theme: system</button>
 </div></header>
 <div class="strip"><b>CiscoSE</b> · Catalyst Center API field guide for customers integrating with other systems</div>
 <div class="hero" id="top"><div class="in">
@@ -716,15 +743,25 @@ page = f'''<meta charset="utf-8">
   <h1>Cisco Catalyst Center API</h1>
   <p class="lead">A working reference for integrating Cisco Catalyst Center (formerly DNA Center) with other systems: how a call is served, which endpoint answers which question, how to automate safely in SD-Access (Software-Defined Access) and non-fabric networks, what is deprecated, and how to put AI agents on top through MCP (Model Context Protocol).</p>
   <p class="meta">Built from the Cisco DevNet Catalyst Center API reference (full spec through 3.1.6), the Platform User Guides 3.1.x, 3.2.x and 3.3.x, release notes through 3.3.1 (9 Sep 2026) and 3.2.3 (21 Sep 2026), the compatibility matrix, Cisco tech note 226435 and the official MCP server repository. Verified 23 Oct 2026. Confirm 3.2/3.3-only operations in <b>Platform &gt; Developer Toolkit &gt; APIs</b> on your cluster.</p>
-  <div class="hbtns"><a class="hbtn solid" href="#overview">Start with the foundations</a><a class="hbtn" href="#changes">Deprecated APIs</a></div>
+  <div class="hbtns"><a class="hbtn solid" href="#overview">Start with the foundations</a><a class="hbtn" href="#changes">Deprecated APIs</a><a class="hbtn" href="{KIT}" download>Download companion kit (.zip)</a></div>
+  <nav class="tiles" aria-label="Quick links">
+    <a href="#live"><b>Live simulation</b><span>A day of API traffic and the rate limit</span></a>
+    <a href="#auth"><b>Authentication</b><span>Token, RBAC and re-auth, step by step</span></a>
+    <a href="#choose"><b>Which endpoint?</b><span>Decision tree from question to API</span></a>
+    <a href="#changes"><b>Deprecation lookup</b><span>Paste a path, get its status</span></a>
+    <a href="#mcp"><b>AI agents and MCP</b><span>Use cases and guard rails</span></a>
+    <a href="#figures"><b>Figure index</b><span>All diagrams in one list</span></a>
+  </nav>
 </div></div>
 <div class="layout">
 <aside class="side" aria-label="Sections"><details open><summary>Contents</summary>{nav_html}</details>
 <div class="legend"><div><span class="sw" style="background:var(--accent)"></span>Stops at the controller (safe to poll)</div><div><span class="sw" style="background:var(--amber)"></span>Reaches the device (on demand)</div><div><span class="sw" style="background:var(--green)"></span>Writes configuration (async task)</div></div></aside>
 <main>{body}</main></div>
-<footer class="site"><div class="in"><b>Cisco<span>SE</span></b> · Catalyst Center API field guide · Release 3.3.1 with 3.1.6 and 2.3.7.x deltas · verified 23 Oct 2026</div></footer>
+<footer class="site"><div class="in"><b>Cisco<span>SE</span></b> · Catalyst Center API field guide · Release 3.3.1 with 3.1.6 and 2.3.7.x deltas · verified 23 Oct 2026 · <a href="{KIT}" download>Companion kit</a> · <a href="https://github.com/alexpacket/catalyst-center-api-guide">Source</a></div></footer>
 {data_script()}
 <script>{JS}
-{IJS}</script>'''
-open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "index.html"), "w").write(page)
+{IJS}
+{AJS}</script>'''
+OUT = sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.path.dirname(HERE), "index.html")
+open(OUT, "w", encoding="utf-8").write(page)
 print(len(page))

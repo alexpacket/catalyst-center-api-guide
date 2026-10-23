@@ -243,3 +243,44 @@ figcaption b { color: var(--ink); font-weight: 600; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 tr[hidden] { display: none; }
 @media (max-width: 760px) { .fields { grid-template-columns: 1fr 1fr; } .tool dl { grid-template-columns: minmax(0, 1fr); } }
+
+/* Animated flows and live simulation */
+.dg .pk { stroke: #000; stroke-width: 1.5; }
+.pk-n { fill: #FFFFFF; } .pk-read, .pk-asr { fill: #4D8DFF; } .pk-dev { fill: #E0A93F; }
+.pk-write { fill: #4CC38A; } .pk-acc { fill: #33CCF0; } .pk-bad { fill: #F07A80; }
+.dg path.pulse { stroke-width: 2.6; transition: stroke-width .2s; }
+.dg .route { fill: none; stroke: #2B3644; stroke-width: 1.2; stroke-dasharray: 3 4; }
+.meter-track { fill: #16222F; } .meter-fill { fill: #4D8DFF; transition: width .15s linear; } .meter-fill.over { fill: #F07A80; }
+.meter-limit { stroke: #F07A80; stroke-width: 1.5; stroke-dasharray: 2 2; }
+#sim-gw { transition: fill .2s; } #sim-gw.hot { fill: #3A1418; stroke: #F07A80; }
+.animbar, .simbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding-bottom: 10px; }
+.ainfo { font-size: 13px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.sbtn.warn { border-color: var(--red); color: var(--red); }
+.sbtn.warn:hover { background: var(--red-soft); }
+.simspd { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-2); }
+.simspd input { width: 110px; accent-color: var(--accent); }
+.simspd span { font-variant-numeric: tabular-nums; min-width: 4.5em; }
+.simclk { margin-left: auto; font: 500 13px var(--mono); color: var(--ink); background: var(--surface); border-radius: 48px; padding: 6px 12px; }
+.simlog-w { padding-top: 10px; display: grid; gap: 8px; }
+.simlegend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12.5px; color: var(--ink-3); }
+.simlegend i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; vertical-align: 0; }
+.simlegend .pk-dev { background: #E0A93F; } .simlegend .pk-read { background: #4D8DFF; } .simlegend .pk-write { background: #4CC38A; }
+.simlegend .pk-acc { background: #33CCF0; } .simlegend .pk-bad { background: #F07A80; }
+.simlog { list-style: none; margin: 0; padding: 10px 14px; background: var(--surface); border-radius: 8px; display: grid; gap: 4px; font-size: 13px; color: var(--ink-2); min-height: 9.5em; }
+.simlog li { border-left: 3px solid var(--rule); padding-left: 8px; overflow-wrap: anywhere; }
+.simlog li b { font: 500 12px var(--mono); color: var(--ink-3); margin-right: 4px; }
+.simlog li.read { border-color: var(--accent); } .simlog li.write { border-color: var(--green); } .simlog li.dev { border-color: var(--amber); }
+.simlog li.acc { border-color: var(--cyan); } .simlog li.bad { border-color: var(--red); color: var(--ink); }
+
+/* Hero quick links and figure index */
+.tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 28px; }
+.tiles a { display: grid; gap: 2px; text-decoration: none; background: #0B1622; border: 1px solid #2B3644; border-radius: 8px; padding: 14px 16px; color: #fff; }
+.tiles a:hover { border-color: #33CCF0; }
+.tiles b { font-size: 14.5px; font-weight: 600; } .tiles span { font-size: 13px; color: #B9C1C9; }
+.figidx { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.figidx a { display: grid; grid-template-columns: 6.5em minmax(0, 1fr) auto; gap: 12px; align-items: baseline; text-decoration: none; padding: 10px 14px; background: var(--surface); border-radius: 8px; color: var(--ink); }
+.figidx a:hover { outline: 1px solid var(--accent); }
+.fi-n { font: 500 12.5px var(--mono); color: var(--accent); } .fi-t { font-weight: 500; } .fi-s { font-size: 13px; color: var(--ink-3); }
+@media (max-width: 760px) { .tiles { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .figidx a { grid-template-columns: minmax(0, 1fr); gap: 2px; } .simclk { margin-left: 0; } }
+@media (max-width: 420px) { .tiles { grid-template-columns: minmax(0, 1fr); } }
+@media print { .animbar, .simbar, .stepbar { display: none; } }

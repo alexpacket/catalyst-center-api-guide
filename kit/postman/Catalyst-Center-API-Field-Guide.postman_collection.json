@@ -1,0 +1,504 @@
+{
+  "info": {
+    "name": "Catalyst Center API field guide",
+    "description": "Companion collection for the CiscoSE Catalyst Center API field guide (https://catc-api.ciscose.com). Read-only calls plus one Command Runner job. Writes are asynchronous: they return 202 and a taskId that you poll. Confirm every operation in Platform > Developer Toolkit > APIs on your release.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Fetch a token when none is cached or it is older than 55 minutes (the API reference gives a 60-minute lifetime).",
+          "const exp = Number(pm.collectionVariables.get('tokenExp') || 0);",
+          "if (pm.request.url.getPath().endsWith('/auth/token') || (pm.collectionVariables.get('token') && Date.now() < exp)) return;",
+          "pm.sendRequest({ url: pm.environment.get('baseUrl') + '/dna/system/api/v1/auth/token', method: 'POST',",
+          "  header: { Authorization: 'Basic ' + btoa(pm.environment.get('username') + ':' + pm.environment.get('password')) } }, (err, res) => {",
+          "  if (err || res.code !== 200) { console.error('Login failed', err || res.code); return; }",
+          "  pm.collectionVariables.set('token', res.json().Token); pm.collectionVariables.set('tokenExp', Date.now() + 55 * 60 * 1000); });"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "token",
+      "value": ""
+    },
+    {
+      "key": "tokenExp",
+      "value": "0"
+    },
+    {
+      "key": "taskId",
+      "value": ""
+    },
+    {
+      "key": "fileId",
+      "value": ""
+    },
+    {
+      "key": "deviceId",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "1 Authentication",
+      "item": [
+        {
+          "name": "Get token",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{username}}"
+                },
+                {
+                  "key": "password",
+                  "value": "{{password}}"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/dna/system/api/v1/auth/token",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "dna",
+                "system",
+                "api",
+                "v1",
+                "auth",
+                "token"
+              ]
+            },
+            "description": "Basic auth in, X-Auth-Token out. The collection's pre-request script also does this automatically."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('token', pm.response.json().Token);",
+                  "pm.collectionVariables.set('tokenExp', Date.now() + 55*60*1000);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2 Inventory (stops at the controller)",
+      "item": [
+        {
+          "name": "Device count",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Auth-Token",
+                "value": "{{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/dna/intent/api/v1/network-device/count",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "dna",
+                "intent",
+                "api",
+                "v1",
+                "network-device",
+                "count"
+              ],
+              "query": []
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "Devices, first page of 500",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Auth-Token",
+                "value": "{{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/dna/intent/api/v1/network-device?offset=1&limit=500",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "dna",
+                "intent",
+                "api",
+                "v1",
+                "network-device"
+              ],
+              "query": [
+                {
+                  "key": "offset",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "500"
+                }
+              ]
+            },
+            "description": "offset is 1-based; increase it by limit until a page returns fewer rows than limit."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const r = pm.response.json().response || []; if (r.length) pm.collectionVariables.set('deviceId', r[0].id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Sites (v1 replacement for the deprecated site API)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Auth-Token",
+                "value": "{{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/dna/intent/api/v1/sites?offset=1&limit=500",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "dna",
+                "intent",
+                "api",
+                "v1",
+                "sites"
+              ],
+              "query": [
+                {
+                  "key": "offset",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "500"
+                }
+              ]
+            },
+            "description": ""
+          }
+        }
+      ]
+    },
+    {
+      "name": "3 Assurance",
+      "item": [
+        {
+          "name": "Site health",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Auth-Token",
+                "value": "{{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/dna/intent/api/v1/site-health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "dna",
+                "intent",
+                "api",
+                "v1",
+                "site-health"
+              ],
+              "query": []
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "Assurance events, switches, last hour",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Auth-Token",
+                "value": "{{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/dna/data/api/v1/assuranceEvents?deviceFamily=Switches and Hubs",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "dna",
+                "data",
+                "api",
+                "v1",
+                "assuranceEvents"
+              ],
+              "query": [
+                {
+                  "key": "deviceFamily",
+                  "value": "Switches and Hubs"
+                }
+              ]
+            },
+            "description": "Add startTime and endTime in epoch milliseconds to bound the window."
+          }
+        }
+      ]
+    },
+    {
+      "name": "4 Events and webhooks",
+      "item": [
+        {
+          "name": "Webhook destinations",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Auth-Token",
+                "value": "{{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/dna/intent/api/v1/event/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "dna",
+                "intent",
+                "api",
+                "v1",
+                "event",
+                "webhook"
+              ],
+              "query": []
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "REST event subscriptions",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Auth-Token",
+                "value": "{{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/dna/intent/api/v1/event/subscription/rest",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "dna",
+                "intent",
+                "api",
+                "v1",
+                "event",
+                "subscription",
+                "rest"
+              ],
+              "query": []
+            },
+            "description": ""
+          }
+        }
+      ]
+    },
+    {
+      "name": "5 Command Runner (reaches the device)",
+      "item": [
+        {
+          "name": "Run show commands",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Auth-Token",
+                "value": "{{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/dna/intent/api/v1/network-device-poller/cli/read-request",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "dna",
+                "intent",
+                "api",
+                "v1",
+                "network-device-poller",
+                "cli",
+                "read-request"
+              ],
+              "query": []
+            },
+            "description": "Run 'Devices, first page' first to fill deviceId. Returns 202 with a taskId.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"commands\": [\n    \"show version\"\n  ],\n  \"deviceUuids\": [\n    \"{{deviceId}}\"\n  ],\n  \"timeout\": 0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const j = pm.response.json(); if (j.response && j.response.taskId) { pm.collectionVariables.set('taskId', j.response.taskId); }",
+                  "pm.test('202 Accepted with a taskId', () => { pm.expect(pm.response.code).to.be.oneOf([200, 202]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Poll task",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Auth-Token",
+                "value": "{{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/dna/intent/api/v1/task/{{taskId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "dna",
+                "intent",
+                "api",
+                "v1",
+                "task",
+                "{{taskId}}"
+              ],
+              "query": []
+            },
+            "description": "Send until endTime is set. progress then holds the fileId."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const t = pm.response.json().response || {}; if (t.endTime && t.progress) { try { pm.collectionVariables.set('fileId', JSON.parse(t.progress).fileId); } catch (e) {} }",
+                  "pm.test('task finished', () => pm.expect(t.endTime, 'endTime not set yet: send again').to.exist);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Fetch output file",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Auth-Token",
+                "value": "{{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/dna/intent/api/v1/file/{{fileId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "dna",
+                "intent",
+                "api",
+                "v1",
+                "file",
+                "{{fileId}}"
+              ],
+              "query": []
+            },
+            "description": ""
+          }
+        }
+      ]
+    }
+  ]
+}

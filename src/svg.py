@@ -555,3 +555,36 @@ def fig_timeline():
         s = s.replace(f'class="tl rel3t">{k}</text>', f'class="tl rel3t">{k}<title>{E(v)}</title></text>')
     s = s.replace('class="bar-dep"/>', 'class="bar-dep"><title>Minimum deprecation window: two GA releases or one year, whichever is longer</title></rect>')
     return s
+
+
+# ================= Live cadence simulation (static structure; JS animates) =================
+def fig_sim():
+    CUR["fid"] = "fsim"
+    b = '<rect x="222" y="62" width="296" height="300" rx="10" class="b-zone"/>'
+    b += '<text x="232" y="84" class="tz">Catalyst Center</text>'
+    b += '<text x="16" y="84" class="tz">Network</text><text x="590" y="84" class="tz">Your systems</text>'
+    routes = [f"M166 {y} L240 185" for y in (121, 201, 281)]
+    routes += [f"M166 {y} L240 123" for y in (121, 201, 281)]
+    routes += ["M590 121 L440 121 L420 185", "M590 191 L440 191 L420 123",
+               "M590 261 L440 261 L420 247", "M240 247 L166 281",
+               "M330 208 L330 286", "M420 309 L590 331"]
+    for d in routes:
+        b += f'<path d="{d}" class="route"/>'
+    for x, y, t, s in [(16, 96, "Access switches", "SNMP, syslog, telemetry"), (16, 176, "Wireless controllers", "AP and client data"), (16, 256, "Routers", "WAN, NetFlow")]:
+        b += box(x, y, 150, 50, t, [s], "dev")
+    for x, y, t, c in [(240, 100, "Inventory and design DB", "read"), (240, 162, "Assurance data", "asr"), (240, 224, "Task engine", "write"), (240, 286, "Event engine", "acc")]:
+        b += box(x, y, 180, 46, t, (), c)
+    b += '<rect x="440" y="100" width="60" height="196" rx="8" class="b-acc" id="sim-gw"/>'
+    b += '<text x="470" y="178" text-anchor="middle" class="t">API</text><text x="470" y="194" text-anchor="middle" class="t">gateway</text>'
+    b += '<text x="470" y="214" text-anchor="middle" class="s">RBAC</text><text x="470" y="228" text-anchor="middle" class="s">rate limit</text>'
+    for x, y, t, s, c in [(590, 96, "NOC dashboard", "site health every 5 min", "read"), (590, 166, "CMDB sync", "paged inventory, nightly", "read"),
+                          (590, 236, "Engineer", "Command Runner on demand", "write"), (590, 306, "ITSM listener", "receives webhooks", "acc")]:
+        b += box(x, y, 166, 50, t, [s], c)
+    b += '<text x="432" y="348" class="l">webhook, not via gateway</text>'
+    b += '<text x="222" y="392" class="s">Gateway calls, last minute</text><text x="518" y="392" text-anchor="end" class="s">limit 50 / min</text>'
+    b += '<rect x="222" y="400" width="296" height="12" rx="6" class="meter-track"/>'
+    b += '<rect id="sim-meter" x="222" y="400" width="0" height="12" rx="6" class="meter-fill"/>'
+    b += '<line x1="419" y1="395" x2="419" y2="417" class="meter-limit"/>'
+    b += '<text id="sim-count" x="222" y="432" class="lm">0 calls</text>'
+    b += '<g id="sim-pk"></g>'
+    return svg("fsim", 760, 440, "Live simulation of who calls Catalyst Center, how often, and where the rate limit bites", b)

@@ -254,6 +254,7 @@ $$('.stepbar').forEach(function(bar){
     var pre = $('.sp-c', panel); pre.hidden = !d.c; $('code', pre).textContent = d.c || '';
     count.textContent = 'Step ' + (cur + 1) + ' of ' + steps.length;
     $('[data-act="next"]', bar).textContent = cur === steps.length - 1 ? 'Finish' : 'Next';
+    if (window.catcFlow) window.catcFlow(steps[cur]);
   }
   bar.addEventListener('click', function(e){
     var b = e.target.closest('button'); if (!b) return;
