@@ -6,7 +6,8 @@ subprocess.run([sys.executable, os.path.join(ROOT, "src", "gen.py"), os.path.joi
 OUT, TOP = os.path.join(ROOT, "catalyst-center-api-kit.zip"), "catalyst-center-api-kit"
 with zipfile.ZipFile(OUT, "w", zipfile.ZIP_DEFLATED) as z:
     z.write(os.path.join(ROOT, "index.html"), f"{TOP}/index.html")
-    z.write(os.path.join(ROOT, "favicon.svg"), f"{TOP}/favicon.svg")
+    for f in ("favicon.svg", "favicon.png"):
+        z.write(os.path.join(ROOT, f), f"{TOP}/{f}")
     for base, arc in (("kit", ""), ("src", "src/")):
         for d, _, files in os.walk(os.path.join(ROOT, base)):
             if "__pycache__" in d:
