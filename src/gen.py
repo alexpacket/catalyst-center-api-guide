@@ -737,7 +737,6 @@ page = f'''<meta charset="utf-8">
 <nav aria-label="Guide parts">{top_nav}</nav>
 <button type="button" class="pill" id="theme-toggle">Theme: system</button>
 </div></header>
-<div class="strip"><b>CiscoSE</b> · Catalyst Center API field guide for customers integrating with other systems</div>
 <div class="hero" id="top"><div class="in">
   <p class="eyebrow">Field guide · Release 3.3.1 (with 3.1.6 and 2.3.7.x deltas)</p>
   <h1>Cisco Catalyst Center API</h1>
