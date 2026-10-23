@@ -742,7 +742,6 @@ page = f'''<meta charset="utf-8">
   <p class="eyebrow">Field guide · Release 3.3.1 (with 3.1.6 and 2.3.7.x deltas)</p>
   <h1>Cisco Catalyst Center API</h1>
   <p class="lead">A working reference for integrating Cisco Catalyst Center (formerly DNA Center) with other systems: how a call is served, which endpoint answers which question, how to automate safely in SD-Access (Software-Defined Access) and non-fabric networks, what is deprecated, and how to put AI agents on top through MCP (Model Context Protocol).</p>
-  <p class="meta">Built from the Cisco DevNet Catalyst Center API reference (full spec through 3.1.6), the Platform User Guides 3.1.x, 3.2.x and 3.3.x, release notes through 3.3.1 (9 Sep 2026) and 3.2.3 (21 Sep 2026), the compatibility matrix, Cisco tech note 226435 and the official MCP server repository. Verified 23 Oct 2026. Confirm 3.2/3.3-only operations in <b>Platform &gt; Developer Toolkit &gt; APIs</b> on your cluster.</p>
   <div class="hbtns"><a class="hbtn solid" href="#overview">Start with the foundations</a><a class="hbtn" href="#changes">Deprecated APIs</a><a class="hbtn" href="{KIT}" download>Download companion kit (.zip)</a></div>
   <nav class="tiles" aria-label="Quick links">
     <a href="#live"><b>Live simulation</b><span>A day of API traffic and the rate limit</span></a>
