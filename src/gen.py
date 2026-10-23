@@ -757,7 +757,7 @@ page = f'''<meta charset="utf-8">
 <aside class="side" aria-label="Sections"><details open><summary>Contents</summary>{nav_html}</details>
 <div class="legend"><div><span class="sw" style="background:var(--accent)"></span>Stops at the controller (safe to poll)</div><div><span class="sw" style="background:var(--amber)"></span>Reaches the device (on demand)</div><div><span class="sw" style="background:var(--green)"></span>Writes configuration (async task)</div></div></aside>
 <main>{body}</main></div>
-<footer class="site"><div class="in"><b>Cisco<span>SE</span></b> · Catalyst Center API field guide · Release 3.3.1 with 3.1.6 and 2.3.7.x deltas · verified 23 Oct 2026 · <a href="{KIT}" download>Companion kit</a> · <a href="https://github.com/alexpacket/catalyst-center-api-guide">Source</a></div></footer>
+<footer class="site"><div class="in"><b>Cisco<span>SE</span></b> · Catalyst Center API field guide · Release 3.3.1 with 3.1.6 and 2.3.7.x deltas · verified 23 Oct 2026 · <a href="https://github.com/alexpacket/catalyst-center-api-guide">Source</a></div></footer>
 {data_script()}
 <script>{JS}
 {IJS}
