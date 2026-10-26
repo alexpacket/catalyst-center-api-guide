@@ -132,7 +132,7 @@ function cmdRunner(){
   if (!apiCall(P.eng, 'pk-write', 'cli', null)) { log('Command Runner request rejected with 429: that operation\'s limit is used up for this client IP address.', 'bad'); return; }
   log('Engineer: POST /network-device-poller/cli/read-request returns 202 and a taskId', 'write');
   at(0.6, function(){ go(P.task2dev, 'pk-dev', function(){ go(rev(P.task2dev), 'pk-dev'); }); });
-  at(2, function(){ apiCall(P.eng, 'pk-write', 'task'); log('Engineer: GET /tasks/{id} until status is SUCCESS, then read the fileId from the task's progress', 'write'); });
+  at(2, function(){ apiCall(P.eng, 'pk-write', 'task'); log('Engineer: GET /tasks/{id} until status is SUCCESS, then read the fileId from the task progress text', 'write'); });
   at(3, function(){ apiCall(P.eng, 'pk-write', null); log('Engineer: GET /file/{fileId} returns the CLI output', 'write'); });
 }
 function issue(manual){
