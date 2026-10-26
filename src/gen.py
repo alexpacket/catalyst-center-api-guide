@@ -245,7 +245,7 @@ A(f'''<section id="overview"><h2>Overview and the four interfaces</h2>
     [c("/dna/intent/api/v1/ (v2)"), "Automation and inventory: sites, devices, provisioning, SD-Access, wireless, templates, events", c("GET /dna/intent/api/v1/network-device")],
     [c("/dna/data/api/v1/"), "Assurance analytics: query, count, trend, top-N, energy", c("POST /dna/data/api/v1/assuranceEvents/query")],
     [c("/dna/system/api/v1/ (v2)"), "Platform: authentication, users and roles, backup and restore, system upgrade", c("POST /dna/system/api/v1/auth/token")],
-    [c("/dna/campus/api/v1/"), "Campus switch and wireless controller configuration and provisioning (3.2.3+); campus networks (3.3.1, controlled availability)", c("POST /dna/campus/api/v1/switches/configs/status") + ", " + c("GET /dna/campus/api/v1/networks")],
+    [c("/dna/campus/api/v1/"), "Campus wireless controller intent (3.2.2, Beta), switch configuration and provisioning (3.2.3), campus networks (3.3.1, controlled availability)", c("POST /dna/campus/api/v1/switches/configs/status") + ", " + c("GET /dna/campus/api/v1/networks")],
 ])}
 <p class="note">Naming shifted in 2.3.7: older operations use hyphenated singular paths (<code>/network-device</code>); newer ones use camelCase collections with <code>/count</code> and <code>/query</code> siblings (<code>/networkDevices</code>, <code>/networkDevices/query</code>). Prefer the newer form; the older ones are the usual deprecation candidates.</p>
 </section>''')
@@ -640,8 +640,9 @@ A(f'''<section id="delta237"><h2>2.3.7.x to 3.x deltas</h2>
     ["3.3.1", "IPAM", c("ipam/serverSetting/validationReports") + ", " + c("ipam/serverSetting/exports") + "; BLUECAT_V2API provider"],
     ["3.3.1", "Wireless", c("/wirelessSettings/wlanSchedulers") + ", " + c("/wirelessControllers/regulatoryActivations")],
     ["3.3.1", "LAN Automation", "OSPF (Open Shortest Path First) underlay as well as IS-IS (Intermediate System to Intermediate System) through " + c("POST /dna/intent/api/v2/lan-automation")],
-    ["3.2.3", "Campus switches and controllers", c("/dna/campus/api/v1/switches/...") + ", " + c("/wirelessControllers/...") + ", " + c("/provision/switches/...") + " (new " + c("/dna/campus") + " prefix, about 430 operations)"],
+    ["3.2.3", "Campus switches", c("/dna/campus/api/v1/switches/...") + ", " + c("/provision/switches/...") + " (switch configuration and provisioning, about 47 operations)"],
     ["3.2.3", "Industrial", c("/iot/fabric/penUpgrade/configurationModels")],
+    ["3.2.2", "Campus wireless controllers", c("/dna/campus/api/v1/wirelessControllers/...") + " (Beta; intended configuration for wireless controllers, about 386 operations; first use of the " + c("/dna/campus") + " prefix)"],
     ["3.2.2", "Troubleshooting", c("/dna/intent/api/v1/pathTraces")],
     ["3.2.2", "Devices and onboarding", c("/pnpNetworkDevices") + ", " + c("/networkDeviceReplacements/workflow/deploy")],
     ["3.2.2", "Events", c("/event/sftp/configurations")],
@@ -655,7 +656,7 @@ A(f'''<section id="changes"><h2>Deprecated and sunset APIs</h2>
 {dep_tool()}
 {fig(fig_timeline(), 14, "Releases (grey: 2.3.7 train, blue: 3.x) and the minimum one-year window after each major deprecation. Past the bar, removal is allowed in any release.")}
 {table(["Area", "Deprecated or Sunset", "Flagged in", "Replace with"], [
-    ["Discovery", c("/discovery") + " v1 (13 operations, including POST and PUT " + c("/discovery") + ")", "3.2.2 (Sunset)", c("POST /discoverys") + ", " + c("POST /discoverys/{id}/jobs")],
+    ["Discovery", c("/discovery") + " v1 (13 operations, including POST and PUT " + c("/discovery") + "); delete-all " + c("DELETE /discovery") + " was flagged earlier, in 2.3.7.9 (use " + c("DELETE /discovery/{id}") + ")", "3.2.2 (Sunset)", c("POST /discoverys") + ", " + c("POST /discoverys/{id}/jobs")],
     ["Issues", c("GET /dna/intent/api/v1/issues"), "3.2.2", c("GET /dna/data/api/v1/assuranceIssues") + ", " + c("POST …/assuranceIssues/query")],
     ["Licenses", c("/licenses/device/count") + ", " + c("…/summary") + ", " + c("…/{uuid}/details") + ", " + c("/licenses/term/…"), "3.2.2", c("/networkDeviceLicenses") + " family, " + c("/licenseUsage")],
     ["Wireless AP configuration", c("/wireless/accesspoint-configuration") + " (5 operations, v1 and v2)", "3.2.2", c("POST /wirelessAccessPoints/configurations")],
@@ -666,13 +667,14 @@ A(f'''<section id="changes"><h2>Deprecated and sunset APIs</h2>
     ["Site credentials", c("/credential-to-site/{siteId}") + " (v1 and v2)", "2.3.7.6", c("PUT /sites/{id}/deviceCredentials") + ", then " + c("POST /sites/deviceCredentials/apply")],
     ["Wireless (legacy)", c("/wireless/profile") + ", " + c("/wireless/rf-profile") + ", " + c("/enterprise-ssid") + ", " + c("/business/ssid") + ", " + c("/wireless/provision") + ", " + c("/wireless/ap-provision"), "2.3.7.6", c("/wirelessProfiles") + ", " + c("/wirelessSettings/rfProfiles") + ", " + c("/sites/{siteId}/wirelessSettings/ssids") + ", " + c("/wirelessControllers/{deviceId}/provision") + ", " + c("/wirelessAccessPoints/provision")],
     ["IP pools", c("/reserve-ip-subpool") + " and " + c("/global-pool") + " (all methods)", "2.3.7.9", c("/ipam/siteIpAddressPools") + ", " + c("/ipam/globalIpAddressPools")],
-    ["SD-Access", c("/business/sda/...") + " (about 45 operations)", "2.3.7.9", c("/sda/...") + " family"],
+    ["SD-Access", c("/business/sda/...") + " (about 45 operations; the fabric wireless ones, " + c("wireless-controller") + " and " + c("hostonboarding/ssid-ippool") + ", from 2.3.7.6)", "2.3.7.9", c("/sda/...") + " family"],
     ["Virtual networks", c("/virtual-network"), "2.3.7.9", c("/sda/layer3VirtualNetworks")],
-    ["Event subscriptions", c("POST/PUT/GET /event/subscription") + " (generic)", "2.3.7.9 (the SDK says 2.3.3.x)", c("/event/subscription/rest") + " and the other per-channel subscription operations"],
+    ["Event subscriptions", c("POST/PUT/GET /event/subscription") + " (generic; DELETE is not flagged)", "2.3.7.9 (the SDK says 2.3.3.x)", c("/event/subscription/rest") + " and the other per-channel subscription operations"],
     ["Security advisories", c("/security-advisory/...") + " (5 operations)", "2.3.7.9", c("/securityAdvisories/...") + " results and " + c("triggerScan")],
     ["Golden image", c("/image/importation/golden...") + ", " + c("GET /image/importation"), "2.3.7.9", c("POST /images/{id}/sites/{siteId}/tagGolden") + ", " + c("/untagGolden") + ", " + c("GET /images")],
     ["SWIM", c("POST /image/distribution") + ", " + c("POST /image/activation/device"), "3.1.3 (Sunset)", c("/networkDeviceImages/...") + " including bulk"],
     ["Config archive", c("GET /network-device-config"), "3.1.3 (the operation itself says 2.3.7.9)", c("/networkDeviceConfigFiles")],
+    ["Device config", c("GET /network-device/config") + " (config for all devices)", "2.3.7.4", c("/networkDeviceConfigFiles")],
     ["Users and roles", c("/dna/system/api/v1/role") + ", " + c("/roles") + ", " + c("/role/permissions"), "3.1.5 (Sunset)", c("/dna/system/api/v2/roles") + ", " + c("/dna/system/api/v2/roles/permissions") + ", " + c("/dna/system/api/v1/accessGroups")],
     ["IPAM provider", "BLUECAT_V1API provider value", "3.3.1: planned for deprecation", "BLUECAT_V2API"],
     ["Southbound", "Multivendor SDK", "Deprecated", "SNMP MIB-II third-party visibility"],
@@ -684,7 +686,7 @@ A(f'''<section id="changes"><h2>Deprecated and sunset APIs</h2>
 
 A(f'''<section id="tooling"><h2>Tooling</h2>
 {table(["Tool", "Package", "Latest seen (Oct 2026)", "Notes"], [
-    ["Python SDK", c("pip install catalystcentersdk"), "3.2.3.0.4", "One package serves 2.3.7.6 to 3.2.3; set " + c("version=") + " (or " + c("CATALYST_CENTER_VERSION") + ") to your controller release, because the default is 3.1.6.0. Refreshes the token and waits on 429 by default"],
+    ["Python SDK", c("pip install catalystcentersdk"), "3.2.3.0.4", "One package serves 2.3.7.6 to 3.2.3; set " + c("version=") + " (or " + c("CATALYST_CENTER_VERSION") + ") to the supported value nearest your controller (2.3.7.6, 2.3.7.9, 3.1.3.0, 3.1.6.0 or 3.2.3.0), because the default is 3.1.6.0. Refreshes the token and waits on 429 by default"],
     ["Ansible", c("cisco.catalystcenter"), "2.14.0", "Red Hat certified, about 1,550 modules. Minimums: 2.2.2 for 3.1.3, 2.10.2 for 3.1.6, 2.11.0 for 3.2.3. " + c("cisco.dnac") + " left the Ansible 14 package"],
     ["Cisco Validated Playbooks", c("catalyst-center-ansible-iac") + "; also " + c("cvp/") + " in the collection", "—", "Discovery, inventory, PnP, SWIM, compliance, RMA (Return Merchandise Authorization), notifications"],
     ["Terraform", c("CiscoDevNet/catalystcenter"), "0.6.5", "Network as Code provider, tested against 2.3.7.10, 2.3.7.11, 3.1.5 and 3.2.3"],
@@ -695,7 +697,7 @@ A(f'''<section id="tooling"><h2>Tooling</h2>
 </section>''')
 
 RULES = [
-    ("Pin to your release.", "Set the SDK's API version to your controller release and pin Ansible and Terraform to versions that support it."),
+    ("Pin to your release.", "Set the SDK's API version to the supported value nearest your controller and pin Ansible and Terraform to versions that support it."),
     ("Read Deprecated and Breaking sections before every upgrade,", "then test integrations against the target release in a lab."),
     ("One service account per integration,", "least privilege, RBAC v2 roles and access groups."),
     ("Cache the token and re-authenticate once on 401;", "documented lifetimes differ (1 hour vs 60 seconds)."),
@@ -727,14 +729,14 @@ SRC = [
     ("DevNet: Ansible for Catalyst Center", "https://developer.cisco.com/docs/catalyst-center/ansible/"),
     ("Cisco: Release notes index", "https://www.cisco.com/c/en/us/support/cloud-systems-management/dna-center/products-release-notes-list.html"),
     ("Cisco: Release notes 3.2.3", "https://www.cisco.com/c/en/us/td/docs/cloud-systems-management/network-automation-and-management/catalyst-center/3-2-x/release-notes/3-2-3/cisco-catalyst-center-release-notes-323.html"),
-    ("Cisco: Platform User Guide 3.2.x", "https://www.cisco.com/c/en/us/td/docs/cloud-systems-management/network-automation-and-management/Catalyst-Center-Platform-Documentation/3_2_x/user-guide/cisco-catalyst-center-platform-ug-3-2-x/b-dnac-platform-ug-3-2-x-chapter-01.html"),
+    ("Cisco: Platform User Guide 3.2.x, About Catalyst Center Platform", "https://www.cisco.com/c/en/us/td/docs/cloud-systems-management/network-automation-and-management/Catalyst-Center-Platform-Documentation/3_2_x/user-guide/cisco-catalyst-center-platform-ug-3-2-x/b-dnac-platform-ug-3-2-x-chapter-01.html"),
     ("Cisco: Platform User Guide 3.3.x (PDF)", "https://www.cisco.com/c/en/us/td/docs/cloud-systems-management/network-automation-and-management/Catalyst-Center-Platform-Documentation/3-3-x/user-guide/cisco-catalyst-center-platform-ug-3-3-x.pdf"),
     ("Cisco: Catalyst Center compatibility matrix (SD-Access)", "https://www.cisco.com/c/dam/en/us/td/docs/Website/enterprise/catalyst_center_compatibility_matrix/index-sda.html"),
     ("Cisco: ServiceNow CMDB synchronization", "https://www.cisco.com/c/en/us/support/docs/cloud-systems-management/catalyst-center/222372-synchronize-catalyst-center-inventory-wi.html"),
     ("Cisco tech note 226435: Understand and use Catalyst Center APIs", "https://www.cisco.com/c/en/us/support/docs/software/dna-switching/226435-understand-and-use-catalyst-center-apis.html"),
     ("Cisco: Platform User Guide 3.3.x, About Intent APIs", "https://www.cisco.com/c/en/us/td/docs/cloud-systems-management/network-automation-and-management/Catalyst-Center-Platform-Documentation/3-3-x/user-guide/cisco-catalyst-center-platform-ug-3-3-x/b-dnac-platform-ug-3-3-x-chapter-01/c_about_intent_based_apis.html"),
     ("Cisco: Platform User Guide 3.3.x, API prerequisites", "https://www.cisco.com/c/en/us/td/docs/cloud-systems-management/network-automation-and-management/Catalyst-Center-Platform-Documentation/3-3-x/user-guide/cisco-catalyst-center-platform-ug-3-3-x/b-dnac-platform-ug-3-3-x-chapter-010/c_api_prereqs.html"),
-    ("Cisco: Platform User Guide 3.3.x, APIs and event notifications chapter", "https://www.cisco.com/c/en/us/td/docs/cloud-systems-management/network-automation-and-management/Catalyst-Center-Platform-Documentation/3-3-x/user-guide/cisco-catalyst-center-platform-ug-3-3-x/b-dnac-platform-ug-3-3-x-chapter-0111.html"),
+    ("Cisco: Platform User Guide 3.3.x, Developer Toolkit chapter", "https://www.cisco.com/c/en/us/td/docs/cloud-systems-management/network-automation-and-management/Catalyst-Center-Platform-Documentation/3-3-x/user-guide/cisco-catalyst-center-platform-ug-3-3-x/b-dnac-platform-ug-3-3-x-chapter-0111.html"),
     ("Cisco Community: Working with Catalyst Center API", "https://community.cisco.com/t5/networking-knowledge-base/working-with-catalyst-center-api/ta-p/5329013"),
     ("PyPI: catalystcentersdk", "https://pypi.org/project/catalystcentersdk/"),
     ("Red Hat: cisco.catalystcenter collection", "https://catalog.redhat.com/en/software/collection/cisco/catalystcenter"),

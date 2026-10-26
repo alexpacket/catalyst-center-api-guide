@@ -555,13 +555,13 @@ def fig_timeline():
         "2.3.7.6": "2.3.7.6 · 2 Aug 2024 · new /sites and per-site settings model, /tasks, Assurance events; legacy site, task and wireless APIs deprecated",
         "2.3.7.7": "2.3.7.7 · 18 Nov 2024 · no API changes",
         "2.3.7.9": "2.3.7.9 · 3 Mar 2025 · /ipam pools, networkDeviceImages; /business/sda, generic /event/subscription, reserve-ip-subpool deprecated",
-        "3.1.3": "3.1.3 · 16 Jun 2025 · SWIM v2, backup and restore, energy; SWIM v1 Sunset",
+        "3.1.3": "3.1.3 · 16 Jun 2025 · networkDeviceImages, backup and restore, energy in DevNet (already in the 2.3.7.9 SDK); SWIM v1 Sunset",
         "2.3.7.10": "2.3.7.10 · 28 Aug 2025 · enrichment v2 APIs",
         "3.1.5": "3.1.5 · 1 Oct 2025 · compliance policies, RBAC v2; role v1 Sunset; resync minimum 6 h",
         "3.1.6": "3.1.6 · 18 Dec 2025 · /discoverys, /globalCredentials, POST /networkDevices, traffic steering, system upgrade",
         "2.3.7.11": "2.3.7.11 · 3 Mar 2026 · recommended 2.3.7.x release; 802.11be parameter change",
-        "3.2.2": "3.2.2 · 5 May 2026 · controlled availability · pathTraces, PnP; deprecates discovery v1, GET /issues, licenses v1, AP configuration",
-        "3.2.3": "3.2.3 · 6 Jul 2026 · generally available (SMU 75346.100) · /dna/campus switch and controller APIs; site paging fix",
+        "3.2.2": "3.2.2 · 5 May 2026 · controlled availability · pathTraces, PnP, /dna/campus wireless controllers (Beta); deprecates discovery v1, GET /issues, licenses v1, AP configuration",
+        "3.2.3": "3.2.3 · 6 Jul 2026 · generally available (SMU 75346.100) · /dna/campus switch APIs; site paging fix",
         "3.3.1": "3.3.1 · 9 Sep 2026 · controlled availability · tracked clients, campus networks, URWB, PRP rings",
     }
     for k, v in tips.items():
