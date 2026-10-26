@@ -224,18 +224,6 @@ curl http://localhost:7001/v1/health      # process up
 S = []
 A = S.append
 
-# ---------------- INTRO (first content block) ----------------
-A(f'''
-<div class="intro">
-  <div class="stats">
-    <div><b>1,000+</b><span>API operations</span></div>
-    <div><b>3 + 1</b><span>path families: intent, data, system; campus from 3.2.3</span></div>
-    <div><b>500</b><span>records per page on most list operations (some allow fewer)</span></div>
-    <div><b>1 h</b><span>token lifetime per the API reference</span></div>
-  </div>
-  <div class="legend-row">{badge("read")}{badge("write")}{badge("dev")}</div>
-</div>''')
-
 # ---------------- FOUNDATIONS ----------------
 A(f'''<section id="overview"><h2>Overview and the four interfaces</h2>
 <p>Catalyst Center exposes a northbound REST (Representational State Transfer) API (application programming interface) over HTTPS (HTTP Secure) with JSON (JavaScript Object Notation) bodies, called the Intent API. Around it sit an eastbound event channel, a westbound ITSM (IT Service Management) integration, and a southbound multivendor SDK (Software Development Kit) that Cisco has deprecated. Every call goes to <code>https://&lt;cluster&gt;</code> plus a path prefix.</p>
