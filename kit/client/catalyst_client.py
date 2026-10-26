@@ -83,7 +83,7 @@ class CatalystCenter:
         for path in (f"/tasks/{task_id}/detail", f"/task/{task_id}"):
             try:
                 return json.loads(self.call("GET", "/dna/intent/api/v1" + path)["response"]["progress"])["fileId"]
-            except (KeyError, TypeError, ValueError):
+            except (KeyError, TypeError, ValueError, RuntimeError, requests.RequestException):
                 continue
         raise RuntimeError(f"no fileId for task {task_id}")
 

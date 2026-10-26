@@ -125,7 +125,7 @@ class CatalystCenter:
         for path in (f"/tasks/{task_id}/detail", f"/task/{task_id}"):
             try:
                 return json.loads(self.call("GET", "/dna/intent/api/v1" + path)["response"]["progress"])["fileId"]
-            except (KeyError, TypeError, ValueError):
+            except (KeyError, TypeError, ValueError, RuntimeError, requests.RequestException):
                 continue
         raise RuntimeError(f"no fileId for task {task_id}")
 
@@ -194,8 +194,8 @@ for dev in outdated:
     t = cc.call("POST", f"/dna/intent/api/v1/networkDeviceImages/{dev['id']}/readinessChecks")
     try:
         done = cc.wait_task(t["response"]["taskId"])
-    except RuntimeError:
-        continue                                   # the check itself failed: leave it out
+    except (RuntimeError, TimeoutError):
+        continue                                   # check failed or timed out: leave it out
     # resultLocation points to this run's validation results
     results = cc.call("GET", done["resultLocation"]).get("response", [])
     if not any(v.get("status") == "FAILED" for v in results):
@@ -245,7 +245,7 @@ A(f'''<section id="overview"><h2>Overview and the four interfaces</h2>
     [c("/dna/intent/api/v1/ (v2)"), "Automation and inventory: sites, devices, provisioning, SD-Access, wireless, templates, events", c("GET /dna/intent/api/v1/network-device")],
     [c("/dna/data/api/v1/"), "Assurance analytics: query, count, trend, top-N, energy", c("POST /dna/data/api/v1/assuranceEvents/query")],
     [c("/dna/system/api/v1/ (v2)"), "Platform: authentication, users and roles, backup and restore, system upgrade", c("POST /dna/system/api/v1/auth/token")],
-    [c("/dna/campus/api/v1/"), "Campus wireless controller intent (3.2.2, Beta), switch configuration and provisioning (3.2.3), campus networks (3.3.1, controlled availability)", c("POST /dna/campus/api/v1/switches/configs/status") + ", " + c("GET /dna/campus/api/v1/networks")],
+    [c("/dna/campus/api/v1/"), "Campus wireless controller intent (3.2.2, Beta), switch configuration and provisioning (3.2.3, Beta), campus networks (3.3.1, controlled availability)", c("POST /dna/campus/api/v1/switches/configs/status") + ", " + c("GET /dna/campus/api/v1/networks")],
 ])}
 <p class="note">Naming shifted in 2.3.7: older operations use hyphenated singular paths (<code>/network-device</code>); newer ones use camelCase collections with <code>/count</code> and <code>/query</code> siblings (<code>/networkDevices</code>, <code>/networkDevices/query</code>). Prefer the newer form; the older ones are the usual deprecation candidates.</p>
 </section>''')
@@ -379,7 +379,7 @@ A(f'''<section id="fabric"><h2>Fabric vs non-fabric: same API?</h2>
 
 A(f'''<section id="sda"><h2>SD-Access fabric {badge("write")} {badge("dev")}</h2>
 <p>Use the <code>/dna/intent/api/v1/sda/...</code> family. The older <code>/business/sda/...</code> operations (about 45: fabric, fabric site and zone, edge, border and control-plane devices, authentication profile, host onboarding, provisioning, transits, virtual networks, multicast) were deprecated in 2.3.7.9; they still answer with a Sunset banner. Every <code>/sda</code> write returns a task, and Cisco asks that they run one at a time: wait for each task before the next request.</p>
-{fig(fig_sda(), 6, "What each fabric object needs before it can be created; follow the arrows. Port assignments need a gateway's VLAN and an edge device, an SD-Access transit needs its control-plane devices, and border handoffs need a border device, a transit and a VN, so they come last.")}
+{fig(fig_sda(), 6, "What each fabric object needs before it can be created; follow the arrows. Port assignments need a gateway's VLAN and an edge device, an SD-Access transit needs its control-plane devices, and border handoffs need a border device and a transit (plus a VN for IP transits), so they come last.")}
 {table(["Endpoint", "Function"], [
     [c("/sda/provisionDevices"), "Provision wired devices to their site; required before a device can take a fabric role"],
     [c("/sda/fabricSites") + ", " + c("/sda/fabricZones"), "Create, update, delete fabric sites (" + c("siteId") + ", " + c("authenticationProfileName") + ", " + c("isPubSubEnabled") + ") and fabric zones"],
@@ -483,7 +483,7 @@ A(f'''<section id="itsm"><h2>ITSM and ServiceNow</h2>
 
 PB = [
     ("ITSM incident with context", "ServiceNow, Jira Service Management",
-     ["Issue or event webhook", "ITSM creates the incident", "ITSM calls " + c("/v2/device-enrichment-details") + " and client/issue variants (v2 on 2.3.7.10 and on 3.1.6 or later; v1 elsewhere)", "Engineer works the ticket", "Resolve issue in Catalyst Center"],
+     ["Issue or event webhook", "ITSM creates the incident", "ITSM calls " + c("/v2/device-enrichment-details") + " and client/issue variants (v2 on 2.3.7.10 or later 2.3.7.x and on 3.1.6 or later; v1 on 3.1.3 and earlier)", "Engineer works the ticket", "Resolve issue in Catalyst Center"],
      ["Turning Assurance issues into tickets with device and client context"], ["Polling an issues query every minute"]),
     ("CMDB and asset sync", "ServiceNow CMDB, NetBox",
      ["Nightly " + c("/networkDevices/query") + " with " + c("/count") + " (2.3.7.9+)", "Page at 500", "Enrich with EoX (end-of-sale, end-of-support and end-of-life) and license data", "Upsert into the CMDB", "Events for changes between runs"],
@@ -536,7 +536,7 @@ A(f'''<section id="mcp"><h2>AI agents and MCP</h2>
 <li><b>Beta can change.</b> Pin a commit and retest on updates.</li>
 </ol>
 {code("bash", MCP_CFG, "Shell · run the official MCP server")}
-<p class="note">Claude Desktop connects to URL-based MCP servers from Anthropic's cloud, so a <code>localhost</code> URL cannot work there. Use the STDIO (standard input/output) form shown in the main branch README (the release branches' READMEs omit it): Claude Desktop starts the container itself with <code>"command": "docker"</code> and <code>"args": ["run", "--rm", "-i", "-e", "CATALYST_CENTER_HOST", …, "catalyst-center-mcp:local", "fastmcp", "run", "catalyst_center_mcp/main.py:mcp", "--transport", "stdio"]</code>, with the four variables in the server's <code>env</code> block. Use the URL form for Cursor, VS Code or Codex.</p>
+<p class="note">Claude Desktop connects to URL-based MCP servers from Anthropic's cloud, so a <code>localhost</code> URL cannot work there. Use the STDIO (standard input/output) form shown in the main branch README (the release/3.1.6 and release/3.2.3 READMEs omit it): Claude Desktop starts the container itself with <code>"command": "docker"</code> and <code>"args": ["run", "--rm", "-i", "-e", "CATALYST_CENTER_HOST", …, "catalyst-center-mcp:local", "fastmcp", "run", "catalyst_center_mcp/main.py:mcp", "--transport", "stdio"]</code>, with the four variables in the server's <code>env</code> block. Use the URL form for Cursor, VS Code or Codex.</p>
 <p class="note">Companion: the DevNet Content Search MCP (<code>https://devnet.cisco.com/v1/foundation-search-mcp/mcp</code>) searches Catalyst Center and Meraki API documentation; it has no live network data. Community MCP servers exist but are not Cisco-supported.</p>
 </section>''')
 
@@ -563,7 +563,7 @@ A(f'''<section id="prechange"><h2>Change prerequisites: fabric and non-fabric</h
     ["Devices provisioned to their site (" + c("/sda/provisionDevices") + ")", "A device needs provisioning before it can take a fabric role"],
     ["IP pools reserved at the site and mapped to the right virtual network", "Anycast gateways need pool plus VN"],
     ["Fabric site's SD-Access compliance is clean for your release and IOS XE version", "The controller checks roles against the SD-Access compatibility matrix"],
-    ["Create objects in dependency order: site, then VNs and gateways; site, then devices; transits; port assignments and handoffs last", "Gateways need the site and VN, devices need the site, port assignments need a gateway and an edge device, border handoffs need a device, a transit and a VN (Figure 6)"],
+    ["Create objects in dependency order: site, then VNs and gateways; site, then devices; transits; port assignments and handoffs last", "Gateways need the site and VN, devices need the site, port assignments need a gateway and an edge device, border handoffs need a border device and a transit, plus a VN for IP transits (Figure 6)"],
     ["Wait for each task or execution status before the next call", "Fabric operations are orchestrated and long-running"],
     ["Avoid template lines that overlap fabric-owned config", "Templates and fabric intent will fight; compliance flags drift"],
 ])}
@@ -640,7 +640,7 @@ A(f'''<section id="delta237"><h2>2.3.7.x to 3.x deltas</h2>
     ["3.3.1", "IPAM", c("ipam/serverSetting/validationReports") + ", " + c("ipam/serverSetting/exports") + "; BLUECAT_V2API provider"],
     ["3.3.1", "Wireless", c("/wirelessSettings/wlanSchedulers") + ", " + c("/wirelessControllers/regulatoryActivations")],
     ["3.3.1", "LAN Automation", "OSPF (Open Shortest Path First) underlay as well as IS-IS (Intermediate System to Intermediate System) through " + c("POST /dna/intent/api/v2/lan-automation")],
-    ["3.2.3", "Campus switches", c("/dna/campus/api/v1/switches/...") + ", " + c("/provision/switches/...") + " (switch configuration and provisioning, about 47 operations)"],
+    ["3.2.3", "Campus switches", c("/dna/campus/api/v1/switches/...") + ", " + c("/provision/switches/...") + " (Beta; switch configuration and provisioning, about 47 operations)"],
     ["3.2.3", "Industrial", c("/iot/fabric/penUpgrade/configurationModels")],
     ["3.2.2", "Campus wireless controllers", c("/dna/campus/api/v1/wirelessControllers/...") + " (Beta; intended configuration for wireless controllers, about 386 operations; first use of the " + c("/dna/campus") + " prefix)"],
     ["3.2.2", "Troubleshooting", c("/dna/intent/api/v1/pathTraces")],

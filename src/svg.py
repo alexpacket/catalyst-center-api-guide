@@ -224,7 +224,7 @@ def fig_sda():
         (2, 2, "Transits", ["`/sda/transitNetworks`", "IP transit: any time"], "write"),
         (3, 0, "Anycast gateways", ["`/sda/anycastGateways`", "IP pool + VN"], "write"),
         (3, 1, "Port assignments", ["`/sda/portAssignments`", "gateway VLAN + edge port"], "dev"),
-        (3, 2, "Border handoffs", ["`…/layer3Handoffs/…`", "border, transit and VN"], "dev"),
+        (3, 2, "Border handoffs", ["`…/layer3Handoffs/…`", "border + transit (+ VN)"], "dev"),
     ]
     for col, row, t, ls, c in boxes:
         b += box(X[col], Y[row], W, H, t, ls, c)
@@ -562,7 +562,7 @@ def fig_timeline():
         "3.1.6": "3.1.6 · 18 Dec 2025 · /discoverys, /globalCredentials, POST /networkDevices, traffic steering, system upgrade",
         "2.3.7.11": "2.3.7.11 · 3 Mar 2026 · recommended 2.3.7.x release; 802.11be parameter change",
         "3.2.2": "3.2.2 · 5 May 2026 · controlled availability · pathTraces, PnP, /dna/campus wireless controllers (Beta); deprecates discovery v1, GET /issues, licenses v1, AP configuration",
-        "3.2.3": "3.2.3 · 6 Jul 2026 · generally available (SMU 75346.100) · /dna/campus switch APIs; site paging fix",
+        "3.2.3": "3.2.3 · 6 Jul 2026 · generally available (SMU 75346.100) · /dna/campus switch APIs (Beta); site paging fix",
         "3.3.1": "3.3.1 · 9 Sep 2026 · controlled availability · tracked clients, campus networks, URWB, PRP rings",
     }
     for k, v in tips.items():

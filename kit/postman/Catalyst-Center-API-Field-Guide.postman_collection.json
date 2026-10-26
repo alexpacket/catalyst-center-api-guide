@@ -720,6 +720,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.collectionVariables.unset('fileId');",
                   "const d = pm.response.json().response || {};",
                   "try { pm.collectionVariables.set('fileId', JSON.parse(d.progress).fileId); } catch (e) { console.log('No fileId in detail progress', d.failureReason || ''); }",
                   "pm.test('progress holds a fileId (else use the legacy task request)', () => pm.expect(pm.collectionVariables.get('fileId')).to.be.a('string').and.not.empty);"
