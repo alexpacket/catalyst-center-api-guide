@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Catalyst Center API field guide",
-    "description": "Companion collection for the CiscoSE Catalyst Center API field guide (https://catc-api.ciscose.com). Read-only calls plus one Command Runner job. Writes are asynchronous: they return 202 and a taskId that you poll. Confirm every operation in Platform > Developer Toolkit > APIs on your release.",
+    "description": "Companion collection for the CiscoSE Catalyst Center API field guide (https://catc-api.ciscose.com). Baseline: Catalyst Center 3.2.3. Read-only calls plus one Command Runner job. Most writes are asynchronous: they return a taskId that you poll with GET /tasks/{id}. Rate limits are per operation and counted per client IP address. Confirm every operation in Platform > Developer Toolkit > APIs on your release.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "event": [
@@ -168,21 +168,10 @@
               ]
             },
             "description": "offset is 1-based; increase it by limit until a page returns fewer rows than limit."
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "const r = pm.response.json().response || []; if (r.length) pm.collectionVariables.set('deviceId', r[0].id);"
-                ]
-              }
-            }
-          ]
+          }
         },
         {
-          "name": "Sites (v1 replacement for the deprecated site API)",
+          "name": "Sites, first page of 500",
           "request": {
             "method": "GET",
             "header": [
@@ -218,7 +207,7 @@
                 }
               ]
             },
-            "description": ""
+            "description": "Replaces the deprecated /site operations (2.3.7.6+)."
           }
         }
       ]
@@ -227,7 +216,7 @@
       "name": "3 Assurance",
       "item": [
         {
-          "name": "Site health",
+          "name": "Site health, areas (max 50 per page)",
           "request": {
             "method": "GET",
             "header": [
@@ -241,7 +230,7 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/dna/intent/api/v1/site-health",
+              "raw": "{{baseUrl}}/dna/intent/api/v1/site-health?siteType=AREA&offset=1&limit=50",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -252,13 +241,110 @@
                 "v1",
                 "site-health"
               ],
-              "query": []
+              "query": [
+                {
+                  "key": "siteType",
+                  "value": "AREA"
+                },
+                {
+                  "key": "offset",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "50"
+                }
+              ]
+            },
+            "description": "site-health allows at most 50 per page (default 25). Page areas and buildings separately."
+          }
+        },
+        {
+          "name": "Site health, buildings (max 50 per page)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Auth-Token",
+                "value": "{{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/dna/intent/api/v1/site-health?siteType=BUILDING&offset=1&limit=50",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "dna",
+                "intent",
+                "api",
+                "v1",
+                "site-health"
+              ],
+              "query": [
+                {
+                  "key": "siteType",
+                  "value": "BUILDING"
+                },
+                {
+                  "key": "offset",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "50"
+                }
+              ]
             },
             "description": ""
           }
         },
         {
-          "name": "Assurance events, switches, last hour",
+          "name": "Active P1 issues",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Auth-Token",
+                "value": "{{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/dna/data/api/v1/assuranceIssues?status=active&priority=P1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "dna",
+                "data",
+                "api",
+                "v1",
+                "assuranceIssues"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "active"
+                },
+                {
+                  "key": "priority",
+                  "value": "P1"
+                }
+              ]
+            },
+            "description": "Replaces GET /dna/intent/api/v1/issues, deprecated in 3.2.2. Without startTime the window is the last 24 hours."
+          }
+        },
+        {
+          "name": "Assurance events, switches, last 24 hours",
           "request": {
             "method": "GET",
             "header": [
@@ -290,7 +376,7 @@
                 }
               ]
             },
-            "description": "Add startTime and endTime in epoch milliseconds to bound the window."
+            "description": "deviceFamily is required. Without startTime and endTime (epoch milliseconds) the window is the last 24 hours."
           }
         }
       ]
@@ -331,6 +417,39 @@
           }
         },
         {
+          "name": "REST webhook subscription details (instanceId)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Auth-Token",
+                "value": "{{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/dna/intent/api/v1/event/subscription-details/rest",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "dna",
+                "intent",
+                "api",
+                "v1",
+                "event",
+                "subscription-details",
+                "rest"
+              ],
+              "query": []
+            },
+            "description": "Use the instanceId from here in POST /event/subscription/rest. Add ?name=<destination name> to filter. Offset starts at 0 here."
+          }
+        },
+        {
           "name": "REST event subscriptions",
           "request": {
             "method": "GET",
@@ -362,12 +481,109 @@
             },
             "description": ""
           }
+        },
+        {
+          "name": "Published notifications, switch unreachable",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Auth-Token",
+                "value": "{{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/dna/intent/api/v1/event/event-series?eventIds=NETWORK-NON-FABRIC_WIRED-1-200",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "dna",
+                "intent",
+                "api",
+                "v1",
+                "event",
+                "event-series"
+              ],
+              "query": [
+                {
+                  "key": "eventIds",
+                  "value": "NETWORK-NON-FABRIC_WIRED-1-200"
+                }
+              ]
+            },
+            "description": "Use for hourly reconciliation; add startTime and endTime in epoch milliseconds."
+          }
         }
       ]
     },
     {
       "name": "5 Command Runner (reaches the device)",
       "item": [
+        {
+          "name": "Find a reachable switch",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Auth-Token",
+                "value": "{{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/dna/intent/api/v1/network-device?family=Switches and Hubs&reachabilityStatus=Reachable&offset=1&limit=1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "dna",
+                "intent",
+                "api",
+                "v1",
+                "network-device"
+              ],
+              "query": [
+                {
+                  "key": "family",
+                  "value": "Switches and Hubs"
+                },
+                {
+                  "key": "reachabilityStatus",
+                  "value": "Reachable"
+                },
+                {
+                  "key": "offset",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "1"
+                }
+              ]
+            },
+            "description": "Stores deviceId for the next request."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const r = pm.response.json().response || []; if (r.length) pm.collectionVariables.set('deviceId', r[0].id);",
+                  "pm.test('found a reachable switch', () => pm.expect(r.length).to.be.above(0));"
+                ]
+              }
+            }
+          ]
+        },
         {
           "name": "Run show commands",
           "request": {
@@ -398,7 +614,7 @@
               ],
               "query": []
             },
-            "description": "Run 'Devices, first page' first to fill deviceId. Returns 202 with a taskId.",
+            "description": "Read-only commands (allowed keywords: GET /network-device-poller/cli/legit-reads). Returns a taskId.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"commands\": [\n    \"show version\"\n  ],\n  \"deviceUuids\": [\n    \"{{deviceId}}\"\n  ],\n  \"timeout\": 0\n}",
@@ -416,7 +632,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "const j = pm.response.json(); if (j.response && j.response.taskId) { pm.collectionVariables.set('taskId', j.response.taskId); }",
-                  "pm.test('202 Accepted with a taskId', () => { pm.expect(pm.response.code).to.be.oneOf([200, 202]); });"
+                  "pm.test('accepted with a taskId', () => { pm.expect(pm.response.code).to.be.oneOf([200, 202]); pm.expect(j.response.taskId).to.be.a('string'); });"
                 ]
               }
             }
@@ -437,7 +653,7 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/dna/intent/api/v1/task/{{taskId}}",
+              "raw": "{{baseUrl}}/dna/intent/api/v1/tasks/{{taskId}}",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -446,12 +662,12 @@
                 "intent",
                 "api",
                 "v1",
-                "task",
+                "tasks",
                 "{{taskId}}"
               ],
               "query": []
             },
-            "description": "Send until endTime is set. progress then holds the fileId."
+            "description": "Send until status is SUCCESS or FAILURE. /task/{taskId} is Sunset since 2.3.7.6."
           },
           "event": [
             {
@@ -459,8 +675,54 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "const t = pm.response.json().response || {}; if (t.endTime && t.progress) { try { pm.collectionVariables.set('fileId', JSON.parse(t.progress).fileId); } catch (e) {} }",
-                  "pm.test('task finished', () => pm.expect(t.endTime, 'endTime not set yet: send again').to.exist);"
+                  "const t = pm.response.json().response || {};",
+                  "pm.test('task finished: send again while status is PENDING', () => pm.expect(t.status).to.be.oneOf(['SUCCESS', 'FAILURE']));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Task detail (fileId)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Auth-Token",
+                "value": "{{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/dna/intent/api/v1/tasks/{{taskId}}/detail",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "dna",
+                "intent",
+                "api",
+                "v1",
+                "tasks",
+                "{{taskId}}",
+                "detail"
+              ],
+              "query": []
+            },
+            "description": "progress holds the output fileId; failureReason explains a failure."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const d = pm.response.json().response || {};",
+                  "try { pm.collectionVariables.set('fileId', JSON.parse(d.progress).fileId); } catch (e) { console.log('No fileId in progress yet', d.failureReason || ''); }",
+                  "pm.test('progress holds a fileId', () => pm.expect(pm.collectionVariables.get('fileId')).to.be.a('string').and.not.empty);"
                 ]
               }
             }

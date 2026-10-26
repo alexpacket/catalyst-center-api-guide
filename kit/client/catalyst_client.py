@@ -4,9 +4,10 @@ catalyst_client.py - minimal Cisco Catalyst Center REST client from the CiscoSE 
 
 What it handles for you
   * Token login (POST /dna/system/api/v1/auth/token) with a cached X-Auth-Token
-  * One re-login on HTTP 401, exponential back-off on 429 and 503
-  * Task polling for asynchronous (HTTP 202) operations
-  * 1-based offset paging with limit 500
+  * One re-login on HTTP 401; back-off on 429, and on 500/503 for reads only
+    (a write that returned 500 may already have run: check before resending)
+  * Task polling with GET /tasks/{id} (2.3.7.6+; the older /task/{taskId} is Sunset)
+  * Paging: 1-based offset with limit 500 on most list operations (site-health allows 50)
 
 Usage (credentials come from environment variables, never the command line):
   export CATC_HOST=catc.example.com CATC_USER=svc-api CATC_PASS='***'
@@ -18,7 +19,7 @@ Usage (credentials come from environment variables, never the command line):
   python3 catalyst_client.py cli --ip 10.0.0.1 --command "show version"
   python3 catalyst_client.py task <taskId>
 
-Payloads and parameters are documented for 3.1.x to 3.3.x. Confirm each operation in
+Written for Catalyst Center 3.2.3 (generally available), with 2.3.7.6+ and 3.3.1 in mind. Confirm each operation in
 Platform > Developer Toolkit > APIs on your own cluster before production use.
 Requires: requests  (pip install requests)
 """
@@ -51,25 +52,34 @@ class CatalystCenter:
             r = self.s.request(method, self.base + path, **kw)
             if r.status_code == 401 and not relogged:
                 self._login(); relogged = True; continue
-            if r.status_code in (429, 503):          # no rate-limit headers are documented: back off
-                time.sleep(delay); delay = min(delay * 2, 60); continue
+            if r.status_code == 429 or (r.status_code in (500, 503) and method.upper() == "GET"):
+                # No rate-limit headers are documented; honour Retry-After if one is ever sent
+                time.sleep(int(r.headers.get("Retry-After", delay))); delay = min(delay * 2, 60); continue
             r.raise_for_status()
             return r.json() if r.content else {}
         raise RuntimeError(f"gave up after retries: {method} {path}")
 
     def wait_task(self, task_id, timeout=900, every=5):
+        """Poll GET /tasks/{id} until status is SUCCESS or FAILURE."""
         t0 = time.time()
         while time.time() - t0 < timeout:
-            t = self.call("GET", f"/dna/intent/api/v1/task/{task_id}")["response"]
-            if t.get("endTime"):
-                if t.get("isError"):
-                    raise RuntimeError(t.get("failureReason") or t.get("progress"))
-                return t
-            time.sleep(every)
+            t = self.call("GET", f"/dna/intent/api/v1/tasks/{task_id}")["response"]
+            if t.get("status") == "FAILURE":
+                d = self.task_detail(task_id)
+                raise RuntimeError(d.get("failureReason") or d.get("errorCode") or "task failed")
+            if t.get("status") == "SUCCESS":
+                return t                              # endTime and resultLocation are set
+            time.sleep(every)                         # PENDING
         raise TimeoutError(task_id)
 
-    def pages(self, path, params=None, limit=500):
-        offset = 1                                   # offset is 1-based
+    def task_detail(self, task_id):
+        """GET /tasks/{id}/detail: progress, data, failureReason, errorCode."""
+        return self.call("GET", f"/dna/intent/api/v1/tasks/{task_id}/detail")["response"]
+
+    def pages(self, path, params=None, limit=500, start=1):
+        """Yield rows page by page. Most list operations use a 1-based offset and
+        allow up to 500 per page; check each operation (site-health allows 50)."""
+        offset = start
         while True:
             rows = self.call("GET", path, params={**(params or {}), "offset": offset, "limit": limit})["response"]
             yield from rows
@@ -80,8 +90,10 @@ class CatalystCenter:
     def run_cli(self, device_ids, commands, timeout=900):
         job = self.call("POST", "/dna/intent/api/v1/network-device-poller/cli/read-request",
                         json={"commands": commands, "deviceUuids": device_ids, "timeout": 0})
-        task = self.wait_task(job["response"]["taskId"], timeout=timeout)
-        file_id = json.loads(task["progress"])["fileId"]
+        task_id = job["response"]["taskId"]
+        self.wait_task(task_id, timeout=timeout)
+        # Command Runner reports its output file in the task's progress text
+        file_id = json.loads(self.task_detail(task_id)["progress"])["fileId"]
         return self.call("GET", f"/dna/intent/api/v1/file/{file_id}")
 
 
@@ -121,15 +133,18 @@ def main():
             print(f'{dev.get("hostname") or "-":32} {dev.get("managementIpAddress") or "-":16} '
                   f'{dev.get("platformId") or "-":20} {dev.get("softwareVersion") or "-":12} {dev.get("reachabilityStatus") or "-"}')
     elif a.action == "site-health":
-        for s in cc.call("GET", "/dna/intent/api/v1/site-health")["response"]:
-            print(f'{s.get("siteName") or "-":40} {s.get("siteType") or "-":10} health={s.get("networkHealthAverage")}')
+        # site-health returns at most 50 per page (default 25, areas only): page areas and buildings
+        for site_type in ("AREA", "BUILDING"):
+            for s in cc.pages("/dna/intent/api/v1/site-health", {"siteType": site_type}, limit=50):
+                print(f'{s.get("siteName") or "-":40} {s.get("siteType") or "-":10} health={s.get("networkHealthAverage")}')
     elif a.action == "cli":
         dev = cc.call("GET", "/dna/intent/api/v1/network-device", params={"managementIpAddress": a.ip})["response"]
         if not dev:
             sys.exit(f"No managed device with IP {a.ip} (or the account's RBAC scope hides it)")
         print(json.dumps(cc.run_cli([dev[0]["id"]], a.commands), indent=2))
     elif a.action == "task":
-        print(json.dumps(cc.call("GET", f"/dna/intent/api/v1/task/{a.task_id}")["response"], indent=2))
+        print(json.dumps({"task": cc.call("GET", f"/dna/intent/api/v1/tasks/{a.task_id}")["response"],
+                          "detail": cc.task_detail(a.task_id)}, indent=2))
 
 
 if __name__ == "__main__":

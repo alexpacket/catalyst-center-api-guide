@@ -7,7 +7,7 @@ def sim_controls():
   <button type="button" class="sbtn" id="sim-cr">Run Command Runner</button>
   <button type="button" class="sbtn" id="sim-is">Raise an issue</button>
   <button type="button" class="sbtn" id="sim-cm">Run CMDB sync now</button>
-  <button type="button" class="sbtn warn" id="sim-bk">Fire 60-call bulk script</button>
+  <button type="button" class="sbtn warn" id="sim-bk">Fire 120-call bulk script</button>
   <label class="simspd">Speed <input type="range" id="sim-sp" min="1" max="20" value="4" aria-label="Simulated minutes per second"> <span id="sim-spv">4 min/s</span></label>
   <span class="simclk" id="sim-clk" aria-live="off">Day 1 08:00</span>
 </div>'''
@@ -96,10 +96,13 @@ document.querySelectorAll('figure.fig').forEach(function(fg){
 /* ---- live cadence simulation ---- */
 var S = document.getElementById('sim-pk'); if (!S) return;
 var svg = S.closest('svg'), clk = document.getElementById('sim-clk'), logEl = document.getElementById('sim-log'),
-    meter = document.getElementById('sim-meter'), cnt = document.getElementById('sim-count'), sp = document.getElementById('sim-sp'),
-    spv = document.getElementById('sim-spv'), ppb = document.getElementById('sim-pp'), gw = document.getElementById('sim-gw');
-var t = 0, speed = 4, running = !RM, visible = false, last = null, queue = [], calls = [], LIMIT = 50, MAX = 75, nextIssue = 47;
-var DEV = [121, 201, 281], shown = 0, hold = 0;
+    sp = document.getElementById('sim-sp'), spv = document.getElementById('sim-spv'), ppb = document.getElementById('sim-pp'), gw = document.getElementById('sim-gw');
+var t = 0, speed = 4, running = !RM, visible = false, last = null, queue = [], nextIssue = 47;
+var DEV = [121, 201, 281];
+/* Illustrative per-operation limits per minute; real values are on each operation's Features tab. */
+var OPS = {site: {limit: 100}, dev: {limit: 100}, cli: {limit: 50}, task: {limit: 1000}};
+Object.keys(OPS).forEach(function(k){ var o = OPS[k]; o.calls = []; o.shown = 0; o.hold = 0;
+  o.bar = document.getElementById('sim-m-' + k); o.txt = document.getElementById('sim-c-' + k); });
 var P = {
   noc: [[590,121],[440,121],[420,185]], cmdb: [[590,191],[440,191],[420,123]], eng: [[590,261],[440,261],[420,247]],
   task2dev: [[240,247],[166,281]], ev: [[330,208],[330,286]], hook: [[420,309],[590,331]],
@@ -112,24 +115,25 @@ function hhmm(m){ var d = Math.floor((m + 480) / 1440) + 1, x = (m + 480) % 1440
 function log(msg, cls){ var li = document.createElement('li'); li.className = cls || ''; li.innerHTML = '<b>' + hhmm(t) + '</b> '; li.appendChild(document.createTextNode(msg));
   logEl.insertBefore(li, logEl.firstChild); while (logEl.children.length > 8) logEl.removeChild(logEl.lastChild); }
 function at(dt, fn){ queue.push({at: t + dt, fn: fn}); }
-function inWindow(){ calls = calls.filter(function(c){ return c > t - 1; }); return calls.length; }
-function apiCall(pts, cls, ok){
-  var n = inWindow();
-  if (n >= LIMIT) { go(pts.slice(0, 2), 'pk-bad', function(){ go(rev(pts.slice(0, 2)), 'pk-bad'); }, 500); gw.classList.add('hot'); setTimeout(function(){ gw.classList.remove('hot'); }, 400); return false; }
-  calls.push(t); go(pts, cls, function(){ go(rev(pts), cls, ok); }); return true;
+function inWindow(o){ o.calls = o.calls.filter(function(c){ return c > t - 1; }); return o.calls.length; }
+function apiCall(pts, cls, op, ok){
+  var o = OPS[op];
+  if (o && inWindow(o) >= o.limit) { go(pts.slice(0, 2), 'pk-bad', function(){ go(rev(pts.slice(0, 2)), 'pk-bad'); }, 500); gw.classList.add('hot'); setTimeout(function(){ gw.classList.remove('hot'); }, 400); return false; }
+  if (o) o.calls.push(t);
+  go(pts, cls, function(){ go(rev(pts), cls, ok); }); return true;
 }
-function noc(){ apiCall(P.noc, 'pk-read'); }
+function noc(){ apiCall(P.noc, 'pk-read', 'site'); }
 function cmdb(pages){ var ok = 0, rej = 0;
-  for (var i = 0; i < pages; i++) (function(i){ at(i * 0.03, function(){ apiCall(P.cmdb, 'pk-read') ? ok++ : rej++; if (i === pages - 1) log('CMDB sync: ' + pages + ' pages of 500 devices (offset 1, 501, 1001...)', 'read'); }); })(i); }
-function bulk(){ var rej = 0;
-  for (var i = 0; i < 60; i++) (function(i){ at(i * 0.008, function(){ if (!apiCall(P.bulk, 'pk-read')) rej++;
-    if (i === 59) log('Bulk script: 60 calls in under a minute. ' + rej + ' rejected with 429 Too Many Requests; back off and retry.', rej ? 'bad' : 'read'); }); })(i); }
+  for (var i = 0; i < pages; i++) (function(i){ at(i * 0.03, function(){ apiCall(P.cmdb, 'pk-read', 'dev') ? ok++ : rej++; if (i === pages - 1) log('CMDB sync: ' + pages + ' pages of 500 devices (offset 1, 501, 1001...)' + (rej ? '; ' + rej + ' pages hit 429 and must be retried' : ''), rej ? 'bad' : 'read'); }); })(i); }
+function bulk(){ var rej = 0, N = 120;
+  for (var i = 0; i < N; i++) (function(i){ at(i * 0.004, function(){ if (!apiCall(P.bulk, 'pk-read', 'dev')) rej++;
+    if (i === N - 1) log('Bulk script: ' + N + ' GET /network-device calls in under a minute. ' + rej + ' rejected with 429 by that operation\'s limit; the dashboard\'s site-health calls are unaffected. Back off and retry.', rej ? 'bad' : 'read'); }); })(i); }
 function cmdRunner(){
-  if (!apiCall(P.eng, 'pk-write', null)) { log('Command Runner request rejected with 429; the limit is shared by every client using the account.', 'bad'); return; }
+  if (!apiCall(P.eng, 'pk-write', 'cli', null)) { log('Command Runner request rejected with 429: that operation\'s limit is used up for this client IP address.', 'bad'); return; }
   log('Engineer: POST /network-device-poller/cli/read-request returns 202 and a taskId', 'write');
   at(0.6, function(){ go(P.task2dev, 'pk-dev', function(){ go(rev(P.task2dev), 'pk-dev'); }); });
-  at(2, function(){ apiCall(P.eng, 'pk-write'); log('Engineer: GET /task/{taskId} until endTime is set, progress holds the fileId', 'write'); });
-  at(3, function(){ apiCall(P.eng, 'pk-write'); log('Engineer: GET /file/{fileId} returns the CLI output', 'write'); });
+  at(2, function(){ apiCall(P.eng, 'pk-write', 'task'); log('Engineer: GET /tasks/{id} until status is SUCCESS, then /tasks/{id}/detail: progress holds the fileId', 'write'); });
+  at(3, function(){ apiCall(P.eng, 'pk-write', null); log('Engineer: GET /file/{fileId} returns the CLI output', 'write'); });
 }
 function issue(manual){
   var y = DEV[Math.floor(Math.random() * 3)];
@@ -153,10 +157,11 @@ function frame(now){
     while (queue.length && queue[0].at <= t) queue.shift().fn();
     step(prev, t); clk.textContent = hhmm(t);
   }
-  var n = inWindow();
-  if (n >= shown) { shown = n; hold = now; } else if (now - hold > 1500) shown = Math.max(n, shown - dt * 40);
-  var v = Math.round(shown); meter.setAttribute('width', Math.min(1, v / MAX) * 296); meter.classList.toggle('over', v >= LIMIT);
-  cnt.textContent = v + (v >= LIMIT ? ' calls, limit reached' : ' calls');
+  Object.keys(OPS).forEach(function(k){ var o = OPS[k], n = inWindow(o);
+    if (n >= o.shown) { o.shown = n; o.hold = now; } else if (now - o.hold > 1500) o.shown = Math.max(n, o.shown - dt * o.limit * 0.8);
+    var v = Math.round(o.shown); if (!o.bar) return;
+    o.bar.setAttribute('width', Math.min(1, v / (o.limit * 1.5)) * 296); o.bar.classList.toggle('over', v >= o.limit);
+    o.txt.textContent = v + ' / ' + o.limit + (v >= o.limit ? ', limit reached' : ''); });
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
@@ -170,6 +175,6 @@ document.getElementById('sim-cm').addEventListener('click', function(){ if (!run
 document.getElementById('sim-bk').addEventListener('click', function(){ if (!running) setRun(true); bulk(); });
 if ('IntersectionObserver' in window) new IntersectionObserver(function(es){ es.forEach(function(e){ visible = e.isIntersecting; }); }, {threshold: 0.2}).observe(svg);
 else visible = true;
-log('Simulation started. NOC polls every 5 min; CMDB sync runs nightly at 02:00.', 'read');
+log('Simulation started. NOC polls site health every 5 min; CMDB sync runs nightly at 02:00. Each operation has its own limit.', 'read');
 })();
 '''
