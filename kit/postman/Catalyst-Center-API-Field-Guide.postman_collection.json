@@ -617,7 +617,7 @@
             "description": "Read-only commands (allowed keywords: GET /network-device-poller/cli/legit-reads). Returns a taskId.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"commands\": [\n    \"show version\"\n  ],\n  \"deviceUuids\": [\n    \"{{deviceId}}\"\n  ],\n  \"timeout\": 0\n}",
+              "raw": "{\n  \"commands\": [\n    \"show version\"\n  ],\n  \"deviceUuids\": [\n    \"{{deviceId}}\"\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -712,7 +712,7 @@
               ],
               "query": []
             },
-            "description": "progress holds the output fileId; failureReason explains a failure."
+            "description": "progress should hold the output fileId; failureReason explains a failure. If the fileId test fails, send the next request."
           },
           "event": [
             {
@@ -721,8 +721,52 @@
                 "type": "text/javascript",
                 "exec": [
                   "const d = pm.response.json().response || {};",
-                  "try { pm.collectionVariables.set('fileId', JSON.parse(d.progress).fileId); } catch (e) { console.log('No fileId in progress yet', d.failureReason || ''); }",
-                  "pm.test('progress holds a fileId', () => pm.expect(pm.collectionVariables.get('fileId')).to.be.a('string').and.not.empty);"
+                  "try { pm.collectionVariables.set('fileId', JSON.parse(d.progress).fileId); } catch (e) { console.log('No fileId in detail progress', d.failureReason || ''); }",
+                  "pm.test('progress holds a fileId (else use the legacy task request)', () => pm.expect(pm.collectionVariables.get('fileId')).to.be.a('string').and.not.empty);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Legacy task (fileId fallback)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Auth-Token",
+                "value": "{{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/dna/intent/api/v1/task/{{taskId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "dna",
+                "intent",
+                "api",
+                "v1",
+                "task",
+                "{{taskId}}"
+              ],
+              "query": []
+            },
+            "description": "Sunset since 2.3.7.6 but still answering. Cisco's Command Runner guide reads the fileId from this response's progress field."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const d = pm.response.json().response || {};",
+                  "try { pm.collectionVariables.set('fileId', JSON.parse(d.progress).fileId); } catch (e) {}"
                 ]
               }
             }

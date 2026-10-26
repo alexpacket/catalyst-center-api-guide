@@ -54,7 +54,8 @@ class CatalystCenter:
                 self._login(); relogged = True; continue
             if r.status_code == 429 or (r.status_code in (500, 503) and method.upper() == "GET"):
                 # No rate-limit headers are documented; honour Retry-After if one is ever sent
-                time.sleep(int(r.headers.get("Retry-After", delay))); delay = min(delay * 2, 60); continue
+                ra = r.headers.get("Retry-After", "")
+                time.sleep(int(ra) if ra.isdigit() else delay); delay = min(delay * 2, 60); continue
             r.raise_for_status()
             return r.json() if r.content else {}
         raise RuntimeError(f"gave up after retries: {method} {path}")
@@ -76,6 +77,16 @@ class CatalystCenter:
         """GET /tasks/{id}/detail: progress, data, failureReason, errorCode."""
         return self.call("GET", f"/dna/intent/api/v1/tasks/{task_id}/detail")["response"]
 
+    def task_file_id(self, task_id):
+        """Command Runner puts its output fileId in the task's progress text. Cisco's guide reads
+        it from the legacy /task/{taskId}; try /tasks/{id}/detail first, then fall back."""
+        for path in (f"/tasks/{task_id}/detail", f"/task/{task_id}"):
+            try:
+                return json.loads(self.call("GET", "/dna/intent/api/v1" + path)["response"]["progress"])["fileId"]
+            except (KeyError, TypeError, ValueError):
+                continue
+        raise RuntimeError(f"no fileId for task {task_id}")
+
     def pages(self, path, params=None, limit=500, start=1):
         """Yield rows page by page. Most list operations use a 1-based offset and
         allow up to 500 per page; check each operation (site-health allows 50)."""
@@ -89,11 +100,10 @@ class CatalystCenter:
 
     def run_cli(self, device_ids, commands, timeout=900):
         job = self.call("POST", "/dna/intent/api/v1/network-device-poller/cli/read-request",
-                        json={"commands": commands, "deviceUuids": device_ids, "timeout": 0})
+                        json={"commands": commands, "deviceUuids": device_ids})   # timeout defaults to 300 s
         task_id = job["response"]["taskId"]
         self.wait_task(task_id, timeout=timeout)
-        # Command Runner reports its output file in the task's progress text
-        file_id = json.loads(self.task_detail(task_id)["progress"])["fileId"]
+        file_id = self.task_file_id(task_id)
         return self.call("GET", f"/dna/intent/api/v1/file/{file_id}")
 
 

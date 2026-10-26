@@ -96,7 +96,8 @@ class CatalystCenter:
                 self._login(); relogged = True; continue
             # 429 any method; 500/503 only for reads (a write may already have run)
             if r.status_code == 429 or (r.status_code in (500, 503) and method == "GET"):
-                time.sleep(int(r.headers.get("Retry-After", delay)))
+                ra = r.headers.get("Retry-After", "")   # not documented; honour if sent
+                time.sleep(int(ra) if ra.isdigit() else delay)
                 delay = min(delay * 2, 60); continue
             r.raise_for_status()
             return r.json() if r.content else {}
@@ -118,6 +119,16 @@ class CatalystCenter:
     def task_detail(self, task_id):              # progress, data, failureReason
         return self.call("GET", f"/dna/intent/api/v1/tasks/{task_id}/detail")["response"]
 
+    def task_file_id(self, task_id):
+        # Cisco documents the fileId in the legacy task's progress; try the new
+        # detail first, then fall back to /task/{taskId} (Sunset, still answering)
+        for path in (f"/tasks/{task_id}/detail", f"/task/{task_id}"):
+            try:
+                return json.loads(self.call("GET", "/dna/intent/api/v1" + path)["response"]["progress"])["fileId"]
+            except (KeyError, TypeError, ValueError):
+                continue
+        raise RuntimeError(f"no fileId for task {task_id}")
+
     def pages(self, path, params=None, limit=500, start=1):
         # Most list operations: 1-based offset, limit up to 500. Check each one:
         # site-health allows 50, some event operations start at 0.
@@ -137,11 +148,10 @@ ids = [d["id"] for d in cc.pages("/dna/intent/api/v1/network-device",
                                  {"platformId": "C9300-48P"})]
 job = cc.call("POST", "/dna/intent/api/v1/network-device-poller/cli/read-request",
               json={"commands": ["show version", "show ip int brief"],
-                    "deviceUuids": ids[:10], "timeout": 0})
+                    "deviceUuids": ids[:10]})          # optional "timeout" in seconds; 300 if omitted
 task_id = job["response"]["taskId"]
 cc.wait_task(task_id)
-# Command Runner reports the output file in the task's progress text
-file_id = json.loads(cc.task_detail(task_id)["progress"])["fileId"]
+file_id = cc.task_file_id(task_id)                  # from the task's progress text
 output = cc.call("GET", f"/dna/intent/api/v1/file/{file_id}")
 '''
 
@@ -182,19 +192,22 @@ outdated = list(cc.pages("/dna/intent/api/v1/networkDeviceImages",
 ready = []
 for dev in outdated:
     t = cc.call("POST", f"/dna/intent/api/v1/networkDeviceImages/{dev['id']}/readinessChecks")
-    cc.wait_task(t["response"]["taskId"])
-    failed = cc.call("GET", "/dna/intent/api/v1/networkDeviceImages/validationResults",
-                     params={"networkDeviceId": dev["id"], "operationType": "READINESS_CHECK",
-                             "status": "FAILED"})["response"]
-    if not failed:
+    try:
+        done = cc.wait_task(t["response"]["taskId"])
+    except RuntimeError:
+        continue                                   # the check itself failed: leave it out
+    # resultLocation points to this run's validation results
+    results = cc.call("GET", done["resultLocation"]).get("response", [])
+    if not any(v.get("status") == "FAILED" for v in results):
         ready.append(dev["id"])
 # 3. Distribute ahead of the window (build the body from your release's schema)
 t = cc.call("POST", "/dna/intent/api/v1/networkDeviceImages/distribute/bulk", json=dist_body(ready))
 cc.wait_task(t["response"]["taskId"], timeout=3600)
 # 4. Maintenance window for the approved change (suppresses Assurance alerts)
-cc.call("POST", "/dna/intent/api/v1/networkDeviceMaintenanceSchedules", json={
+m = cc.call("POST", "/dna/intent/api/v1/networkDeviceMaintenanceSchedules", json={
     "description": "CHG0012345 image upgrade", "networkDeviceIds": ready,
     "maintenanceSchedule": {"startTime": WINDOW_START_MS, "endTime": WINDOW_END_MS}})
+cc.wait_task(m["response"]["taskId"])
 # 5. Activate inside the window, then read post-check results
 t = cc.call("POST", "/dna/intent/api/v1/networkDeviceImages/activate/bulk", json=act_body(ready))
 cc.wait_task(t["response"]["taskId"], timeout=5400)
@@ -270,7 +283,7 @@ A(f'''<section id="auth"><h2>Authentication and RBAC</h2>
 A(f'''<section id="mech"><h2>Async tasks, pagination, rate limits</h2>
 <h3>Most writes are tasks</h3>
 <p>A 202 Accepted means the request was queued, not that it worked. Poll <code>GET /dna/intent/api/v1/tasks/{{id}}</code> until <code>status</code> is <code>SUCCESS</code> or <code>FAILURE</code>; on failure read <code>failureReason</code> from <code>/tasks/{{id}}/detail</code>. The older <code>GET /task/{{taskId}}</code> (with <code>endTime</code> and <code>isError</code>) has been Sunset since 2.3.7.6; it still answers, and the 202 body's <code>url</code> still points at it. The legacy <code>/business/sda/...</code> APIs return <code>executionId</code> instead; poll <code>/dna/intent/api/v1/dnacaap/management/execution-status/{{executionId}}</code>. A few writes return a status URL or answer synchronously; read each operation's response.</p>
-{fig(fig_async(), 3, "The asynchronous pattern. Command Runner reports its output fileId in the task's progress text; a configuration export points to its file through resultLocation.", stepper("f3"))}
+{fig(fig_async(), 3, "The asynchronous pattern. Command Runner reports its output fileId in the task's progress text (Cisco's guide reads it from the legacy /task/{taskId}); a configuration export points to its file through resultLocation.", stepper("f3"))}
 <h3>Pagination and filtering</h3>
 {table(["Rule", "Detail"], [
     ["Page size", c("limit") + " 1 to 500 on most list operations (devices, sites, SD-Access objects). Not a global rule: " + c("site-health") + " allows 50, audit logs 25, the interfaces query 1,000. Read each operation's limit."],
@@ -300,7 +313,7 @@ A(f'''<section id="sites"><h2>Sites and network settings {badge("write")}</h2>
     [c("PUT /sites/{id}/aaaSettings") + " (AAA: authentication, authorization and accounting), " + c("dnsSettings") + ", " + c("dhcpSettings") + ", " + c("ntpSettings") + ", " + c("timeZoneSettings") + ", " + c("bannerSettings") + ", " + c("telemetrySettings"), "Per-site network settings with inheritance (DNS, DHCP and NTP: Domain Name System, Dynamic Host Configuration Protocol, Network Time Protocol)", "Standard settings per region"],
     [c("PUT /sites/{id}/deviceCredentials") + ", then " + c("POST /dna/intent/api/v1/sites/deviceCredentials/apply") + " (body: " + c("deviceCredentialId") + " and " + c("siteId") + ", one credential per call); status at " + c("GET /sites/{id}/deviceCredentials/status"), "Credentials per site and sync to devices", "Credential rotation"],
     [c("POST /dna/intent/api/v1/networkDevices/assignToSite/apply"), "Assign devices to a site (returns 202)", "Place discovered devices before provisioning"],
-    [c("/dna/intent/api/v1/globalCredentials") + " (3.1.6; replaces the older " + c("/v2/global-credential") + ")", "CLI, SNMP, NETCONF (Network Configuration Protocol) and HTTP credentials", "Vault-driven credential lifecycle"],
+    [c("/dna/intent/api/v1/globalCredentials") + " (3.1.6; newer alternative to " + c("/v2/global-credential") + ", which is not deprecated)", "CLI, SNMP, NETCONF (Network Configuration Protocol) and HTTP credentials", "Vault-driven credential lifecycle"],
     [c("/ipam/globalIpAddressPools") + ", " + c("/ipam/siteIpAddressPools") + " (2.3.7.9+)", "Global pools and site subpools", "IPAM (IP Address Management) alignment"],
 ])}
 </section>''')
@@ -313,7 +326,7 @@ A(f'''<section id="inventory"><h2>Inventory, discovery and onboarding {badge("re
     [c("POST /networkDevices") + ", " + c("PUT /networkDevices/{id}") + ", " + c("…/validateDevice") + " (3.1.6)", "Add, update and validate devices", "Brownfield onboarding"],
     [c("/dna/intent/api/v1/discoverys") + " (3.1.6)", "Discovery: create, edit, start jobs (" + c("POST /discoverys/{id}/jobs") + "), discovered devices. Replaces " + c("/discovery") + ", Sunset in 3.2.2", "Scan ranges, CDP (Cisco Discovery Protocol) or LLDP (Link Layer Discovery Protocol)"],
     ["PnP device, workflow and settings operations; " + c("/pnpNetworkDevices") + " (3.2.x)", "Zero-touch claim of new devices", "Greenfield branch and closet rollouts"],
-    [c("PUT /networkDevices/resyncIntervalSettings"), "Global resync interval (360 to 1,440 minutes from 3.1.5; it was 25 minutes before)", "Do not lower; event-driven sync keeps data current"],
+    [c("PUT /networkDevices/resyncIntervalSettings"), "Global resync interval (360 to 1,440 minutes from 3.1.5; the minimum was 25 minutes before)", "Do not lower; event-driven sync keeps data current"],
     ["Device Replacement operations", "RMA (Return Merchandise Authorization) workflow", "Swap a failed device with its config, image and license"],
 ])}
 </section>''')
@@ -448,7 +461,7 @@ A(f'''<section id="events"><h2>Events and webhooks {badge("asr")}</h2>
 A(f'''<section id="tools"><h2>Troubleshooting tools {badge("dev")}</h2>
 <p>Command Runner runs read-only CLI commands on a list of devices; the allowed command keywords are listed by <code>GET /network-device-poller/cli/legit-reads</code>. Path Trace (<code>POST /pathTraces</code> from 3.2.2; <code>/flow-analysis</code>, deprecated in the 3.2.x API specification, on earlier releases) analyses the path between two endpoints. Both are tasks that reach devices: run them on demand for a handful of devices or one flow, never on a schedule.</p>
 {fig(fig_cmdrunner(), 9, "Command Runner round trip. The output lands in a file you fetch by fileId.", stepper("f9"))}
-{code("python", PY_CMD, "Python · Command Runner (timeout is in seconds; 0 uses the default)")}
+{code("python", PY_CMD, "Python · Command Runner")}
 {usewhen(["An engineer is investigating one device or a handful", "Cached inventory or Assurance data cannot answer the question"],
          ["On a timer, in a loop, or across the whole fleet", "For configuration changes (Command Runner is read-only)"])}
 </section>''')
