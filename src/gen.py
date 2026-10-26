@@ -231,7 +231,7 @@ docker run --rm -p 127.0.0.1:7001:7001 -e CATALYST_CENTER_HOST \
 curl http://localhost:7001/v1/health      # process up
 # Cursor, VS Code, Codex: {"mcpServers": {"catalyst-center": {"url": "http://localhost:7001/v1/mcp"}}}
 # Claude Desktop reaches URL servers from Anthropic's cloud, so localhost will not work:
-# use the README's STDIO (standard input/output) form, which runs the container per session.
+# use the STDIO (standard input/output) form from the main-branch README (see the note below).
 '''
 
 S = []
@@ -379,7 +379,7 @@ A(f'''<section id="fabric"><h2>Fabric vs non-fabric: same API?</h2>
 
 A(f'''<section id="sda"><h2>SD-Access fabric {badge("write")} {badge("dev")}</h2>
 <p>Use the <code>/dna/intent/api/v1/sda/...</code> family. The older <code>/business/sda/...</code> operations (about 45: fabric, fabric site and zone, edge, border and control-plane devices, authentication profile, host onboarding, provisioning, transits, virtual networks, multicast) were deprecated in 2.3.7.9; they still answer with a Sunset banner. Every <code>/sda</code> write returns a task, and Cisco asks that they run one at a time: wait for each task before the next request.</p>
-{fig(fig_sda(), 6, "What each fabric object needs before it can be created. Objects in the same column do not depend on each other. Border handoffs come last because they need both a border device and a transit.")}
+{fig(fig_sda(), 6, "What each fabric object needs before it can be created; follow the arrows. Port assignments need a gateway's VLAN and an edge device, an SD-Access transit needs its control-plane devices, and border handoffs need a border device, a transit and a VN, so they come last.")}
 {table(["Endpoint", "Function"], [
     [c("/sda/provisionDevices"), "Provision wired devices to their site; required before a device can take a fabric role"],
     [c("/sda/fabricSites") + ", " + c("/sda/fabricZones"), "Create, update, delete fabric sites (" + c("siteId") + ", " + c("authenticationProfileName") + ", " + c("isPubSubEnabled") + ") and fabric zones"],
@@ -389,7 +389,7 @@ A(f'''<section id="sda"><h2>SD-Access fabric {badge("write")} {badge("dev")}</h2
     [c("/sda/fabricDevices"), "Assign border, control-plane, edge and wireless controller roles; border BGP (Border Gateway Protocol) settings"],
     [c("/sda/transitNetworks"), "IP-based or SD-Access transits for multi-site"],
     [c("/sda/fabricDevices/layer3Handoffs/ipTransits") + ", " + c("…/sdaTransits") + ", " + c("…/layer2Handoffs"), "Border handoffs to a transit or a Layer 2 network"],
-    [c("/sda/portAssignments") + ", " + c("/sda/portChannels"), "Host onboarding: put edge ports and port channels into a VN; without these no endpoint connects"],
+    [c("/sda/portAssignments") + ", " + c("/sda/portChannels"), "Static host onboarding: edge ports into a gateway's VLAN; trunk or extended-node port channels (ports without a static assignment use the fabric site's authentication profile)"],
     [c("/sda/fabrics/{fabricId}/vlanToSsids"), "Fabric wireless VLAN-to-SSID mapping (GET and PUT)"],
     [c("/sda/extranetPolicies") + ", " + c("/sda/multicast") + ", " + c("/sda/pendingFabricEvents"), "Shared services between VNs, multicast, and pending fabric changes to apply"],
     [c("/dna/intent/api/v1/trafficSteeringPolicys") + ", " + c("…Contracts") + " (3.1.6; Security API family)", "Security service insertion and traffic steering"],
@@ -428,10 +428,10 @@ A(f'''<section id="questions"><h2>Customer questions to endpoints</h2>
     ["How healthy is each device tier?", c("GET /dna/intent/api/v1/network-health"), "Command Runner on one device"],
     ["How are clients doing?", c("GET /dna/intent/api/v1/client-health"), c("GET /client-detail?macAddress=")],
     ["What issues are open, and where?", c("GET /dna/data/api/v1/assuranceIssues?status=active") + " or " + c("POST …/assuranceIssues/query") + " (2.3.7.6+; " + c("GET /dna/intent/api/v1/issues") + " is deprecated in 3.2.2)", "—"],
-    ["What happened on these devices in the last 24 hours?", c("POST /dna/data/api/v1/assuranceEvents/query") + " (one device family per call, 7-day maximum window)", "—"],
+    ["What happened on these devices in the last 24 hours?", c("POST /dna/data/api/v1/assuranceEvents/query") + " (device families or client families per call, not both; 7-day maximum window)", "—"],
     ["Which devices are exposed to a PSIRT (Product Security Incident Response Team) advisory?", c("GET /securityAdvisories/results/networkDevices") + " (2.3.7.9+)", "—"],
     ["Which devices are out of compliance, and why?", c("GET /compliance") + " + " + c("/compliance/networkDevices/{id}/detail/policys") + " (3.1.5+)", "—"],
-    ["Which devices are not on the golden image?", c("GET /networkDeviceImages?networkDeviceImageStatus=OUTDATED") + " (2.3.7.9+)", "—"],
+    ["Which devices are not on the golden image?", c("GET /networkDeviceImages?networkDeviceImageStatus=OUTDATED") + " (in the 2.3.7.9 SDK; DevNet lists it from 3.1.3)", "—"],
     ["What did the config look like last week?", c("GET /networkDeviceConfigFiles") + " (2.3.7.9+)", "—"],
     ["What does this device show right now?", "—", c("POST /network-device-poller/cli/read-request")],
     ["Why can host A not reach host B?", "—", "Path Trace (" + c("/pathTraces") + " from 3.2.2; " + c("/flow-analysis") + " before)"],
@@ -444,7 +444,7 @@ A(f'''<section id="assurance"><h2>Health, issues and Assurance events {badge("as
 {table(["Endpoint", "Returns", "Use case"], [
     [c("GET /site-health") + ", " + c("/network-health") + ", " + c("/client-health"), "Health scores by site, device tier, client type", "NOC dashboards, every 5 to 15 minutes"],
     [c("/dna/data/api/v1/assuranceIssues") + " (GET, " + c("/query") + ", " + c("/count") + "); custom issue definitions", "Issues with priority, status and site; " + c("GET /dna/intent/api/v1/issues") + " is deprecated in 3.2.2", "Ticketing, triage queues"],
-    [c("/dna/data/api/v1/assuranceEvents") + ", " + c("/count") + ", " + c("/query"), "Raw syslog, trap and device events for one device or client family (" + c("deviceFamily") + " required, times in epoch milliseconds)", "Forensics on a device or client"],
+    [c("/dna/data/api/v1/assuranceEvents") + ", " + c("/count") + ", " + c("/query"), "Raw syslog, trap and device events for device families or client families, not both (" + c("deviceFamily") + " required, times in epoch milliseconds)", "Forensics on a device or client"],
     ["GET or POST " + c("/dna/data/api/v1/…/trendAnalytics") + ", " + c("summaryAnalytics") + " (method varies by resource)", "Server-side aggregation over time", "SLA (service-level agreement) and capacity reports"],
     [c("/dna/intent/api/v2/…-enrichment-details") + " (2.3.7.10)", "Device, client, user, issue context in one call", "Ticket enrichment"],
     [c("/dna/data/api/v1/thousandEyesTestResults") + " (3.1.3)", "ThousandEyes test results and trends", "Application experience reports"],
@@ -452,7 +452,7 @@ A(f'''<section id="assurance"><h2>Health, issues and Assurance events {badge("as
 </section>''')
 
 A(f'''<section id="events"><h2>Events and webhooks {badge("asr")}</h2>
-<p>When a subscribed event fires, Catalyst Center makes an HTTP POST or PUT to your listener with a JSON payload. Destinations can be REST webhook, email, syslog or SNMP trap, each with its own API; Webex and ITSM destinations are set up in the UI (user interface). Event definitions are fixed and cannot be edited.</p>
+<p>When a subscribed event fires, Catalyst Center makes an HTTP POST or PUT to your listener with a JSON payload. Destinations can be REST webhook, email, syslog or SNMP trap, each with its own API; ITSM instances also have one (<code>/dna/intent/api/v1/integration-settings/instances/itsm</code>), and Webex is set up in the UI (user interface). Event definitions are fixed and cannot be edited.</p>
 {fig(fig_webhook(), 8, "Webhooks are the primary path; an hourly query of published notifications reconciles anything missed.", stepper("f8"))}
 {code("python", PY_EVENTS, "Python · register a webhook, subscribe, reconcile")}
 <p class="note">Cisco's stated practice: confirm HTTP/HTTPS reachability from the cluster to your listener before subscribing. An HTTP/S proxy can be set for outbound notifications. Keep <code>trustCert</code> false so the controller verifies your listener's certificate; true is for lab listeners with self-signed certificates. The unreachable event IDs above come from Cisco's Event Catalog (Platform &gt; Developer Toolkit &gt; Event Notifications); third-party devices use <code>NETWORK-NON-FABRIC_WIRED-1-273</code>.</p>
@@ -468,7 +468,7 @@ A(f'''<section id="tools"><h2>Troubleshooting tools {badge("dev")}</h2>
 
 # ---------------- INTEGRATE ----------------
 A(f'''<section id="itsm"><h2>ITSM and ServiceNow</h2>
-<p>ITSM integration ships as pre-built bundles configured in the GUI (graphical user interface). Prerequisites on the ServiceNow side: the Cisco Catalyst app from the ServiceNow Store and a MID (Management, Instrumentation and Discovery) server. Then add the ITSM instance at System &gt; Settings &gt; Destinations &gt; ITSM, test connectivity, and enable bundles under Platform &gt; Manage &gt; Bundles.</p>
+<p>ITSM integration ships as pre-built bundles configured in the GUI (graphical user interface). On the ServiceNow side you usually install the Cisco Catalyst app from the ServiceNow Store (required for the REST API Endpoint option; the Event Management option works without it), and Cisco's walkthrough also uses a MID (Management, Instrumentation and Discovery) server. Then add the ITSM instance at System &gt; Settings &gt; Destinations &gt; ITSM, test connectivity, and enable bundles under Platform &gt; Manage &gt; Bundles.</p>
 {fig(fig_itsm(), 10, "Events land in a ServiceNow import set table (inventory in its own table); transform maps route them by type; the Cisco Catalyst app (formerly Cisco DNA app) calls back for enrichment.")}
 {table(["Bundle (Platform User Guide name)", "What it does"], [
     ["Basic ITSM (ServiceNow) CMDB synchronization", "Triggers or schedules a one-way sync of Catalyst Center devices into ServiceNow CMDB CIs (configuration items)"],
@@ -478,12 +478,12 @@ A(f'''<section id="itsm"><h2>ITSM and ServiceNow</h2>
     ["Endpoint Attribute Retrieval with ITSM (ServiceNow)", "Retrieves endpoint details from ServiceNow into Catalyst Center, once or on a schedule"],
     ["Rogue and aWIPS", "Rogue management and aWIPS (adaptive Wireless Intrusion Prevention System) APIs; needs the Rogue and aWIPS package"],
 ])}
-<p class="note">Platform &gt; Runtime Dashboard shows API and event activity for the integration flows; its API summary covers the ServiceNow bundles. For inventory, "Post device inventory details to a staging table" writes to a ServiceNow staging table instead of the CMDB; events can also go to a generic REST endpoint for your own scripts.</p>
+<p class="note">Platform &gt; Runtime Dashboard shows API and event activity for the integration flows; its API summary covers the ServiceNow bundles. For inventory, "Post device inventory details to a staging table" writes to a ServiceNow staging table instead of the CMDB; events can also go to a Generic REST Endpoint, a different staging table in ServiceNow, for your own processing.</p>
 </section>''')
 
 PB = [
     ("ITSM incident with context", "ServiceNow, Jira Service Management",
-     ["Issue or event webhook", "ITSM creates the incident", "ITSM calls " + c("/v2/device-enrichment-details") + " and client/issue variants (2.3.7.10+; v1 on older releases)", "Engineer works the ticket", "Resolve issue in Catalyst Center"],
+     ["Issue or event webhook", "ITSM creates the incident", "ITSM calls " + c("/v2/device-enrichment-details") + " and client/issue variants (v2 on 2.3.7.10 and on 3.1.6 or later; v1 elsewhere)", "Engineer works the ticket", "Resolve issue in Catalyst Center"],
      ["Turning Assurance issues into tickets with device and client context"], ["Polling an issues query every minute"]),
     ("CMDB and asset sync", "ServiceNow CMDB, NetBox",
      ["Nightly " + c("/networkDevices/query") + " with " + c("/count") + " (2.3.7.9+)", "Page at 500", "Enrich with EoX (end-of-sale, end-of-support and end-of-life) and license data", "Upsert into the CMDB", "Events for changes between runs"],
@@ -536,7 +536,7 @@ A(f'''<section id="mcp"><h2>AI agents and MCP</h2>
 <li><b>Beta can change.</b> Pin a commit and retest on updates.</li>
 </ol>
 {code("bash", MCP_CFG, "Shell · run the official MCP server")}
-<p class="note">Claude Desktop connects to URL-based MCP servers from Anthropic's cloud, so a <code>localhost</code> URL cannot work there. Use the repository README's STDIO (standard input/output) configuration for Claude Desktop, and the URL form for Cursor, VS Code or Codex.</p>
+<p class="note">Claude Desktop connects to URL-based MCP servers from Anthropic's cloud, so a <code>localhost</code> URL cannot work there. Use the STDIO (standard input/output) form shown in the main branch README (the release branches' READMEs omit it): Claude Desktop starts the container itself with <code>"command": "docker"</code> and <code>"args": ["run", "--rm", "-i", "-e", "CATALYST_CENTER_HOST", …, "catalyst-center-mcp:local", "fastmcp", "run", "catalyst_center_mcp/main.py:mcp", "--transport", "stdio"]</code>, with the four variables in the server's <code>env</code> block. Use the URL form for Cursor, VS Code or Codex.</p>
 <p class="note">Companion: the DevNet Content Search MCP (<code>https://devnet.cisco.com/v1/foundation-search-mcp/mcp</code>) searches Catalyst Center and Meraki API documentation; it has no live network data. Community MCP servers exist but are not Cisco-supported.</p>
 </section>''')
 
@@ -563,7 +563,7 @@ A(f'''<section id="prechange"><h2>Change prerequisites: fabric and non-fabric</h
     ["Devices provisioned to their site (" + c("/sda/provisionDevices") + ")", "A device needs provisioning before it can take a fabric role"],
     ["IP pools reserved at the site and mapped to the right virtual network", "Anycast gateways need pool plus VN"],
     ["Fabric site's SD-Access compliance is clean for your release and IOS XE version", "The controller checks roles against the SD-Access compatibility matrix"],
-    ["Create objects in dependency order: site, then VNs and gateways; site, then devices; transits; handoffs last", "Gateways need the site and VN, devices need the site, border handoffs need a device and a transit (Figure 6)"],
+    ["Create objects in dependency order: site, then VNs and gateways; site, then devices; transits; port assignments and handoffs last", "Gateways need the site and VN, devices need the site, port assignments need a gateway and an edge device, border handoffs need a device, a transit and a VN (Figure 6)"],
     ["Wait for each task or execution status before the next call", "Fabric operations are orchestrated and long-running"],
     ["Avoid template lines that overlap fabric-owned config", "Templates and fabric intent will fight; compliance flags drift"],
 ])}

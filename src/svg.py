@@ -223,8 +223,8 @@ def fig_sda():
         (2, 1, "Fabric devices", ["`/sda/fabricDevices`", "border, control plane, edge"], "dev"),
         (2, 2, "Transits", ["`/sda/transitNetworks`", "IP transit: any time"], "write"),
         (3, 0, "Anycast gateways", ["`/sda/anycastGateways`", "IP pool + VN"], "write"),
-        (3, 1, "Port assignments", ["`/sda/portAssignments`", "VN + edge device"], "dev"),
-        (3, 2, "Border handoffs", ["`…/layer3Handoffs/…`", "border device + transit"], "dev"),
+        (3, 1, "Port assignments", ["`/sda/portAssignments`", "gateway VLAN + edge port"], "dev"),
+        (3, 2, "Border handoffs", ["`…/layer3Handoffs/…`", "border, transit and VN"], "dev"),
     ]
     for col, row, t, ls, c in boxes:
         b += box(X[col], Y[row], W, H, t, ls, c)
@@ -237,6 +237,7 @@ def fig_sda():
     b += ar(f"M{X[2] + W} {m[1]} H{X[3]}")
     b += ar(f"M{X[2] + W} {m[1] + 8} H{X[2] + W + 8} V{m[2] - 8} H{X[3]}")
     b += ar(f"M{X[2] + W} {m[2]} H{X[3]}")
+    b += ar(f"M{X[3] + W // 2} {Y[0] + H} V{Y[1]}")
     b += ar(f"M{X[2] + W // 2} {Y[1] + H} V{Y[2]}", dash=True)
     b += lbl(X[2] + W // 2 - 8, Y[2] - 8, "SD-Access transit only", "end", False)
     b += lbl(380, Y[2] + H + 26, "each write returns a task; Cisco asks that /sda writes run one at a time", "middle", False)

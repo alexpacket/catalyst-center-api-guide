@@ -64,7 +64,7 @@ STEPS = {
   {"t": "Something happens in the network", "d": "A switch stops answering the controller's reachability checks.", "c": ""},
   {"t": "Correlated into an event", "d": "Assurance turns the signal into a catalog event with severity and category.", "c": ""},
   {"t": "Event pushed to your listener", "d": "An HTTP POST with a JSON body. The exact fields depend on the event; this sample is abridged.",
-   "c": "POST https://hooks.example.com/catc\n{\n  \"eventId\": \"NETWORK-NON-FABRIC_WIRED-1-200\",\n  \"name\": \"Switch Unreachable\",\n  \"category\": \"ALERT\",\n  \"severity\": 1,\n  \"details\": {\"Device IP\": \"10.10.20.81\"}\n}"},
+   "c": "POST https://hooks.example.com/catc\n{\n  \"eventId\": \"NETWORK-NON-FABRIC_WIRED-1-200\",\n  \"type\": \"NETWORK\",\n  \"category\": \"ALERT\",\n  \"severity\": 1,\n  \"details\": {\"Device\": \"10.10.20.81\", ...}\n}"},
   {"t": "Acknowledge fast", "d": "Return 200 immediately and queue the work, so slow processing never blocks delivery.", "c": "200 OK"},
   {"t": "Reconcile hourly", "d": "List the notifications published in the last hour and process any your listener missed during an outage.",
    "c": "GET /dna/intent/api/v1/event/event-series?eventIds=NETWORK-NON-FABRIC_WIRED-1-200&startTime=<epoch ms>&endTime=<epoch ms>"},

@@ -29,5 +29,5 @@ Cursor, VS Code or Codex: add this to the MCP client configuration
 {"mcpServers": {"catalyst-center": {"url": "http://localhost:7001/v1/mcp"}}}
 
 Claude Desktop connects to URL-based servers from Anthropic's cloud, so localhost will not
-work there. Use the STDIO (standard input/output) configuration from the repository README.
+work there. Use the STDIO (standard input/output) configuration from the main-branch README.
 JSON
